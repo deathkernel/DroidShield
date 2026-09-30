@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 SYSTEM_PREFIXES = (
     "com.android.",
     "com.google.android.",
@@ -19,7 +18,7 @@ def classify_package(package: str, metadata: dict | None = None) -> dict:
     path_evidence = bool(metadata.get("system_path_evidence"))
     flag_evidence = bool(metadata.get("system_flag_evidence"))
     prefix_evidence = lower.startswith(SYSTEM_PREFIXES)
-    protected = path_evidence or flag_evidence
+    protected = path_evidence or flag_evidence or prefix_evidence
 
     permissions = set(metadata.get("permissions", []))
     signals: list[str] = []
@@ -50,7 +49,7 @@ def classify_package(package: str, metadata: dict | None = None) -> dict:
         "system_evidence": {
             "path": path_evidence,
             "flags": flag_evidence,
-            "prefix_only": prefix_evidence and not protected,
+            "prefix_only": prefix_evidence and not (path_evidence or flag_evidence),
         },
         "score": score,
         "level": "HIGH" if score >= 50 else "MEDIUM" if score >= 25 else "LOW",
