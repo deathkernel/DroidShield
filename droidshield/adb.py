@@ -3,9 +3,10 @@ from __future__ import annotations
 import re
 import subprocess
 from dataclasses import dataclass
+from pathlib import Path
 
 
-PACKAGE_RE = re.compile(r"^[A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)+$")
+PACKAGE_RE = re.compile(r"^[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+$")
 
 
 class AdbError(RuntimeError):
@@ -131,3 +132,17 @@ class AdbClient:
         if not PACKAGE_RE.fullmatch(package):
             raise AdbError(f"Invalid Android package name: {package!r}")
         return self.shell(f"dumpsys package {package}", serial=serial)
+
+    def pull(self, serial: str, remote_path: str, local_path: Path) -> Path:
+        if not remote_path.startswith("/"):
+            raise AdbError("Refusing to pull a non-absolute device path.")
+        local_path.parent.mkdir(parents=True, exist_ok=True)
+        self.run(
+            "pull",
+            remote_path,
+            str(local_path),
+            serial=serial,
+        )
+        if not local_path.is_file():
+            raise AdbError(f"adb pull reported success but file is missing: {local_path}")
+        return local_path
