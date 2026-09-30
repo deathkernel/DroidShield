@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 from rich.console import Console
@@ -10,7 +11,17 @@ from rich.table import Table
 
 from .adb import AdbError, AdbClient
 from .apk import ApkToolError, inspect_apk
+from .classifier import classify_package
+from .collectors import collect_package_metadata
 from .forensics import save_evidence
+from .remediation import (
+    RemediationRefused,
+    disable_package,
+    snapshot_package,
+    uninstall_package,
+    verify_absent,
+    verify_disabled,
+)
 from .report import html_report, markdown_report
 from .scanner import scan_device
 from .tooling import capabilities
@@ -35,6 +46,34 @@ def build_parser() -> argparse.ArgumentParser:
     scan.add_argument("--evidence-dir", type=Path, help="Also save timestamped evidence.")
     scan.add_argument("--markdown", type=Path, help="Write a Markdown report.")
     scan.add_argument("--html", type=Path, help="Write an HTML report.")
+    scan.add_argument(
+        "--hash-apks",
+        action="store_true",
+        help="Hash analyzed third-party APKs from the device when supported.",
+    )
+
+    remediate = sub.add_parser(
+        "remediate",
+        help="Safely disable or uninstall one package after evidence capture.",
+    )
+    remediate.add_argument("--serial", help="ADB device serial.")
+    remediate.add_argument("--package", required=True, help="Android package name.")
+    remediate.add_argument(
+        "--action",
+        choices=("disable", "uninstall"),
+        default="disable",
+    )
+    remediate.add_argument(
+        "--evidence-dir",
+        type=Path,
+        required=True,
+        help="Directory where the before/after remediation record is stored.",
+    )
+    remediate.add_argument(
+        "--confirm",
+        action="store_true",
+        help="Actually perform the requested action. Without this, the command is dry-run only.",
+    )
 
     apk = sub.add_parser("apk", help="Inspect an APK without executing it.")
     apk.add_argument("path", type=Path)
@@ -72,16 +111,33 @@ def cmd_capabilities() -> int:
     return 0
 
 
-def cmd_scan(client: AdbClient, serial: str | None, output: Path | None, evidence_dir: Path | None, markdown: Path | None, html: Path | None) -> int:
-    report = scan_device(client, serial)
+def cmd_scan(
+    client: AdbClient,
+    serial: str | None,
+    output: Path | None,
+    evidence_dir: Path | None,
+    markdown: Path | None,
+    html: Path | None,
+    hash_apks: bool,
+) -> int:
+    report = scan_device(client, serial, hash_apks=hash_apks)
     console.print(f"[bold]Device:[/bold] {report['device']['serial']}")
     console.print(f"[bold]Packages:[/bold] {len(report['packages'])}")
-    console.print(f"[bold]Risk:[/bold] {report['risk']['level']} ({report['risk']['score']}/100)")
+    console.print(
+        f"[bold]Analyzed:[/bold] {report['metadata_coverage']['packages_analyzed']}"
+    )
+    console.print(
+        f"[bold]Risk:[/bold] {report['risk']['level']} "
+        f"({report['risk']['score']}/100; {report['risk']['confidence']} confidence)"
+    )
     console.print(f"[bold]Findings:[/bold] {len(report['findings'])}")
 
     for finding in report["findings"]:
         style = "red" if finding["severity"] == "HIGH" else "yellow"
-        console.print(f"[{style}]{finding['severity']}: {finding['title']}[/]")
+        package = f" [{finding['package']}]" if finding.get("package") else ""
+        console.print(
+            f"[{style}]{finding['severity']}: {finding['title']}{package}[/]"
+        )
 
     if report["hardening"]:
         console.print("\n[bold]Hardening recommendations[/bold]")
@@ -89,22 +145,101 @@ def cmd_scan(client: AdbClient, serial: str | None, output: Path | None, evidenc
             console.print(f"  • {item}")
 
     if output:
+        output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(json.dumps(report, indent=2), encoding="utf-8")
         console.print(f"[green]Report written to {output}[/green]")
     if evidence_dir:
         path = save_evidence(report, evidence_dir)
         console.print(f"[green]Evidence saved to {path}[/green]")
     if markdown:
+        markdown.parent.mkdir(parents=True, exist_ok=True)
         markdown.write_text(markdown_report(report), encoding="utf-8")
         console.print(f"[green]Markdown report written to {markdown}[/green]")
     if html:
+        html.parent.mkdir(parents=True, exist_ok=True)
         html.write_text(html_report(report), encoding="utf-8")
         console.print(f"[green]HTML report written to {html}[/green]")
     return 0
 
 
+def cmd_remediate(
+    client: AdbClient,
+    serial: str | None,
+    package: str,
+    action: str,
+    evidence_dir: Path,
+    confirm: bool,
+) -> int:
+    resolved = client.resolve_serial(serial)
+    evidence_dir.mkdir(parents=True, exist_ok=True)
+
+    metadata = collect_package_metadata(
+        client, resolved, package, hash_apk=False
+    )
+    assessment = classify_package(package, metadata)
+    console.print(f"[bold]Package:[/bold] {package}")
+    console.print(f"[bold]Assessment:[/bold] {assessment['level']} ({assessment['score']})")
+    console.print(f"[bold]Signals:[/bold] {', '.join(assessment['signals']) or 'none'}")
+    console.print(f"[bold]Remediation allowed:[/bold] {assessment['remediation_allowed']}")
+
+    snapshot = snapshot_package(client, resolved, package, evidence_dir)
+    console.print(f"[green]Before-action evidence:[/green] {snapshot}")
+
+    if not confirm:
+        console.print(
+            "[yellow]DRY RUN: no device change made. Re-run with --confirm to perform the action.[/yellow]"
+        )
+        return 0
+
+    if not assessment["remediation_allowed"]:
+        raise RemediationRefused(
+            "The package is protected by Android system evidence and cannot be remediated by DroidShield."
+        )
+
+    result = (
+        disable_package(client, resolved, package, confirmed=True)
+        if action == "disable"
+        else uninstall_package(client, resolved, package, confirmed=True)
+    )
+    verified = (
+        verify_disabled(client, resolved, package)
+        if action == "disable"
+        else verify_absent(client, resolved, package)
+    )
+
+    record = {
+        "schema_version": "1.0",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "serial": resolved,
+        "package": package,
+        "action": action,
+        "before_snapshot": str(snapshot),
+        "assessment": assessment,
+        "result": {
+            "success": result.success,
+            "output": result.output,
+        },
+        "verified": verified,
+    }
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    record_path = evidence_dir / f"{package.replace('.', '_')}-remediation-{stamp}.json"
+    record_path.write_text(json.dumps(record, indent=2), encoding="utf-8")
+
+    if result.success and verified:
+        console.print(f"[green]Remediation completed and verified: {action}[/green]")
+        console.print(f"[green]Record: {record_path}[/green]")
+        return 0
+
+    console.print(
+        f"[red]Remediation requires review: action_success={result.success}, verified={verified}[/red]"
+    )
+    console.print(f"[red]Record: {record_path}[/red]")
+    return 3
+
+
 def write_json(data: dict, output: Path | None) -> None:
     if output:
+        output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(json.dumps(data, indent=2), encoding="utf-8")
         console.print(f"[green]Report written to {output}[/green]")
     else:
@@ -120,14 +255,31 @@ def main() -> int:
         if args.command == "capabilities":
             return cmd_capabilities()
         if args.command == "scan":
-            return cmd_scan(client, args.serial, args.output, args.evidence_dir, args.markdown, args.html)
+            return cmd_scan(
+                client,
+                args.serial,
+                args.output,
+                args.evidence_dir,
+                args.markdown,
+                args.html,
+                args.hash_apks,
+            )
+        if args.command == "remediate":
+            return cmd_remediate(
+                client,
+                args.serial,
+                args.package,
+                args.action,
+                args.evidence_dir,
+                args.confirm,
+            )
         if args.command == "apk":
             write_json(inspect_apk(args.path), args.output)
             return 0
         if args.command == "yara":
             write_json(scan_with_yara(args.path, args.rules), args.output)
             return 0
-    except (AdbError, ApkToolError) as exc:
+    except (AdbError, ApkToolError, RemediationRefused, ValueError) as exc:
         console.print(f"[red]DroidShield error:[/red] {exc}")
         return 2
     except KeyboardInterrupt:
