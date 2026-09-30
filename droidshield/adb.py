@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import shlex
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -118,7 +119,7 @@ class AdbClient:
         for apk_path in self.package_paths(serial, package):
             try:
                 output = self.shell(
-                    f"sha256sum '{apk_path}'",
+                    f"sha256sum {shlex.quote(apk_path)}",
                     serial=serial,
                 ).strip()
             except AdbError:
