@@ -112,12 +112,27 @@ def disable_package(
         f"pm disable-user --user 0 {shlex.quote(package)}",
         serial=serial,
     )
-    return RemediationResult(
-        package,
-        "disable-user",
-        "new state: disabled" in output.lower() or "disabled" in output.lower(),
-        output.strip(),
+    success = "new state: disabled" in output.lower() or "disabled" in output.lower()
+    return RemediationResult(package, "disable-user", success, output.strip())
+
+
+def enable_package(
+    client: AdbClient,
+    serial: str,
+    package: str,
+    confirmed: bool = False,
+) -> RemediationResult:
+    _validate_package(package)
+    if not confirmed:
+        raise RemediationRefused(
+            "Explicit confirmation is required before enabling a package."
+        )
+    output = client.shell(
+        f"pm enable --user 0 {shlex.quote(package)}",
+        serial=serial,
     )
+    success = "enabled" in output.lower() and "error" not in output.lower()
+    return RemediationResult(package, "enable-user", success, output.strip())
 
 
 def uninstall_package(
@@ -157,6 +172,12 @@ def verify_disabled(client: AdbClient, serial: str, package: str) -> bool:
         if line.startswith("package:")
     }
     return package in disabled
+
+
+def verify_enabled(client: AdbClient, serial: str, package: str) -> bool:
+    _validate_package(package)
+    output = client.shell("pm list packages", serial=serial)
+    return f"package:{package}" in {line.strip() for line in output.splitlines()}
 
 
 def explain_remediation_policy() -> str:
