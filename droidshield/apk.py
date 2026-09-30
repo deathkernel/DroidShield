@@ -62,10 +62,21 @@ def _extract_cert_digests(output: str) -> dict[str, list[str]]:
         r"(?i)(?:Signer #\d+ certificate MD5 digest|MD5 digest):\s*([0-9A-F:]{16,})",
         output,
     )))
+    return {"sha256": sha256, "sha1": sha1, "md5": md5}
+
+
+def _signer_identity(path: Path) -> dict:
+    if not tool_available("apksigner"):
+        return {"available": False}
+    result = _run_tool(
+        ["apksigner", "verify", "--verbose", "--print-certs", str(path)],
+        timeout=60,
+    )
     return {
-        "sha256": sha256,
-        "sha1": sha1,
-        "md5": md5,
+        "available": True,
+        "returncode": result["returncode"],
+        "certificates": _extract_cert_digests(result["output"]),
+        "error": result["error"],
     }
 
 
@@ -138,14 +149,8 @@ def inspect_apk(
         )
 
     if result["tools"]["apksigner"]:
-        signer = _run_tool(
-            ["apksigner", "verify", "--verbose", "--print-certs", str(path)],
-            timeout=60,
-        )
-        result["signing"] = {
-            **signer,
-            "certificate_digests": _extract_cert_digests(signer["output"]),
-        }
+        signer = _signer_identity(path)
+        result["signing"] = signer
 
     if yara_rules is not None:
         result["yara"] = scan_with_yara(path, yara_rules)
@@ -179,6 +184,41 @@ def inspect_apk(
             result["deep"]["source_analysis"] = _analyze_text_tree(source)
 
     return result
+
+
+def compare_apks(before: Path, after: Path) -> dict:
+    if not before.is_file() or not after.is_file():
+        raise ApkToolError("Both APK files must exist for comparison.")
+
+    before_hash = sha256_file(before)
+    after_hash = sha256_file(after)
+    before_signer = _signer_identity(before)
+    after_signer = _signer_identity(after)
+
+    before_certs = before_signer.get("certificates", {}).get("sha256", [])
+    after_certs = after_signer.get("certificates", {}).get("sha256", [])
+
+    return {
+        "before": {
+            "path": str(before),
+            "sha256": before_hash,
+            "size": before.stat().st_size,
+            "signing": before_signer,
+        },
+        "after": {
+            "path": str(after),
+            "sha256": after_hash,
+            "size": after.stat().st_size,
+            "signing": after_signer,
+        },
+        "changed": before_hash != after_hash,
+        "signer_changed": (
+            before_certs != after_certs
+            if before_certs and after_certs
+            else None
+        ),
+        "size_delta": after.stat().st_size - before.stat().st_size,
+    }
 
 
 def acquire_package_apks(
