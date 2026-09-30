@@ -12,29 +12,23 @@ FORWARDING_CODES = {
 
 
 def audit_call_forwarding(client: AdbClient, serial: str) -> dict:
-    results = {}
-    for name, code in FORWARDING_CODES.items():
-        try:
-            # USSD support varies by Android build/carrier. We only collect what
-            # the device exposes and never claim a negative result when it cannot
-            # be verified.
-            output = client.shell(
-                f"am start -a android.intent.action.CALL -d tel:{code} >/dev/null 2>&1 || true",
-                serial=serial,
-            )
-            results[name] = {
-                "code": code,
-                "status": "carrier/device verification required",
-                "raw_trigger_result": output.strip(),
-            }
-        except Exception as exc:
-            results[name] = {
-                "code": code,
-                "status": "unverified",
-                "error": str(exc),
-            }
+    # DroidShield deliberately does not place or trigger calls/USSD automatically.
+    # Carrier/MMI behavior is vendor- and network-dependent, so the report supplies
+    # the standard query codes and records the state as unverified until the user or
+    # a vendor-specific adapter obtains an authoritative response.
     return {
         "verified": False,
-        "note": "Call forwarding is carrier/network dependent; DroidShield never infers disabled forwarding from a failed query.",
-        "checks": results,
+        "verification_method": "manual_MMI_or_carrier",
+        "note": (
+            "Call forwarding is carrier/network dependent. DroidShield does not "
+            "automatically trigger CALL/USSD actions and never infers disabled "
+            "forwarding from a missing or failed response."
+        ),
+        "checks": {
+            name: {
+                "code": code,
+                "status": "manual/carrier verification required",
+            }
+            for name, code in FORWARDING_CODES.items()
+        },
     }
