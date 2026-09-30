@@ -174,7 +174,6 @@ def scan_device(
         "security": security,
         "component_graph": component_graph,
         "install_timeline": timeline,
-        "incident_timeline": build_incident_timeline({"generated_at": None, "risk": {}, "package_metadata": package_metadata, "security": security}),
         "runtime": runtime,
         "network": network,
         "telephony": telephony,
@@ -182,4 +181,5 @@ def scan_device(
     }
     report["risk"] = correlate(report)
     report["hardening"] = recommendations(report)
+    report["incident_timeline"] = build_incident_timeline(report)
     return report
