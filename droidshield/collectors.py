@@ -74,19 +74,22 @@ def _all_paths_system(paths: list[str]) -> bool:
     )
 
 
-def collect_package_metadata(client: AdbClient, serial: str, package: str) -> dict:
+def collect_package_metadata(
+    client: AdbClient,
+    serial: str,
+    package: str,
+    hash_apk: bool = False,
+) -> dict:
     if not PACKAGE_RE.fullmatch(package):
         raise ValueError(f"Invalid Android package name: {package!r}")
 
     dump = client.package_dump(serial, package)
     paths = client.package_paths(serial, package)
 
-    permission_block = dump
     permissions = sorted(
-        set(re.findall(r"android\.permission\.[A-Z0-9_]+", permission_block))
+        set(re.findall(r"android\.permission\.[A-Z0-9_]+", dump))
     )
 
-    flags_raw = _first_match(r"ApplicationInfo\{[^}]*\sflags=([^ ]+)", dump)
     version_name = _first_match(r"versionName=([^\s]+)", dump)
     version_code = _first_match(r"versionCode=(\d+)", dump)
     first_install = _first_match(r"firstInstallTime=([^\n]+)", dump)
@@ -95,15 +98,16 @@ def collect_package_metadata(client: AdbClient, serial: str, package: str) -> di
     uid = _first_match(r"userId=(\d+)", dump)
     enabled_raw = _first_match(r"enabled=(true|false)", dump)
 
+    pkg_flags_match = re.search(r"pkgFlags=\[([^\]]+)\]", dump, flags=re.IGNORECASE)
+    pkg_flags = pkg_flags_match.group(1).strip().split() if pkg_flags_match else []
+
     try:
-        hashes = client.package_sha256(serial, package)
+        hashes = client.package_sha256(serial, package) if hash_apk else {}
     except Exception:
         hashes = {}
 
     system_path_evidence = _all_paths_system(paths)
-    system_flag_evidence = bool(
-        flags_raw and "SYSTEM" in flags_raw.upper()
-    )
+    system_flag_evidence = any(flag.upper() == "SYSTEM" for flag in pkg_flags)
 
     return {
         "package": package,
@@ -117,7 +121,7 @@ def collect_package_metadata(client: AdbClient, serial: str, package: str) -> di
         "installer_package": installer,
         "uid": int(uid) if uid else None,
         "enabled": enabled_raw != "false",
-        "flags": flags_raw,
+        "pkg_flags": pkg_flags,
         "system_path_evidence": system_path_evidence,
         "system_flag_evidence": system_flag_evidence,
         "raw_size": len(dump),
