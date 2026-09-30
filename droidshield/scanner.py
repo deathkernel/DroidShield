@@ -12,7 +12,7 @@ from .diff import compare_reports
 from .hardening import recommendations
 from .network import collect_network_state
 from .telephony import audit_call_forwarding
-from .timeline import build_install_timeline
+from .timeline import build_incident_timeline, build_install_timeline
 from .rules import package_findings
 
 
@@ -174,6 +174,7 @@ def scan_device(
         "security": security,
         "component_graph": component_graph,
         "install_timeline": timeline,
+        "incident_timeline": build_incident_timeline({"generated_at": None, "risk": {}, "package_metadata": package_metadata, "security": security}),
         "runtime": runtime,
         "network": network,
         "telephony": telephony,
