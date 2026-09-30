@@ -12,7 +12,7 @@ import shlex
 from .adb import AdbClient
 
 
-PACKAGE_RE = re.compile(r"^[A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)+$")
+PACKAGE_RE = re.compile(r"^[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+$")
 SYSTEM_PATH_PREFIXES = (
     "/system/",
     "/system_ext/",
@@ -57,7 +57,11 @@ def _package_is_protected(client: AdbClient, serial: str, package: str) -> tuple
         if any(path.startswith(prefix) for prefix in SYSTEM_PATH_PREFIXES)
     ]
     dump = client.package_dump(serial, package)
-    flag_match = re.search(r"pkgFlags=\\[([^\\]]+)\\]", dump, flags=re.IGNORECASE)
+    flag_match = re.search(
+        r"pkgFlags=\[([^\]]+)\]",
+        dump,
+        flags=re.IGNORECASE,
+    )
     flag_text = flag_match.group(1) if flag_match else ""
     if system_paths:
         return True, f"system APK path: {system_paths[0]}"
@@ -141,10 +145,7 @@ def uninstall_package(
 
 def verify_absent(client: AdbClient, serial: str, package: str) -> bool:
     _validate_package(package)
-    try:
-        return not client.package_paths(serial, package)
-    except Exception:
-        return True
+    return not client.package_paths(serial, package)
 
 
 def verify_disabled(client: AdbClient, serial: str, package: str) -> bool:
