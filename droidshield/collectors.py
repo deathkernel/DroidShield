@@ -20,37 +20,75 @@ def _lines(output: str) -> list[str]:
     return [line.strip() for line in output.splitlines() if line.strip()]
 
 
+def _safe_shell(client: AdbClient, command: str, serial: str) -> tuple[str, str | None]:
+    try:
+        return client.shell(command, serial=serial), None
+    except Exception as exc:
+        return "", str(exc)
+
+
 def collect_security_state(client: AdbClient, serial: str) -> dict:
     settings = {}
+    errors = {}
+
     for namespace in ("secure", "global"):
-        try:
-            out = client.shell(f"settings list {namespace}", serial=serial)
+        out, error = _safe_shell(
+            client,
+            f"settings list {namespace}",
+            serial,
+        )
+        if error:
+            settings[namespace] = {}
+            errors[f"settings_{namespace}"] = error
+        else:
             settings[namespace] = dict(
                 line.split("=", 1) for line in _lines(out) if "=" in line
             )
-        except Exception:
-            settings[namespace] = {}
 
-    accessibility = _lines(
-        client.shell("settings get secure enabled_accessibility_services", serial=serial)
+    accessibility_out, error = _safe_shell(
+        client,
+        "settings get secure enabled_accessibility_services",
+        serial,
     )
-    admins = _lines(
-        client.shell(
-            "dumpsys device_policy | grep -E 'admin=|ComponentInfo' || true",
-            serial=serial,
-        )
+    if error:
+        errors["accessibility_services"] = error
+    accessibility = _lines(accessibility_out)
+
+    admins_out, error = _safe_shell(
+        client,
+        "dumpsys device_policy | grep -E 'admin=|ComponentInfo' || true",
+        serial,
     )
-    overlays = _lines(
-        client.shell("cmd appops query-op SYSTEM_ALERT_WINDOW allow", serial=serial)
+    if error:
+        errors["device_policy"] = error
+    admins = _lines(admins_out)
+
+    overlays_out, error = _safe_shell(
+        client,
+        "cmd appops query-op SYSTEM_ALERT_WINDOW allow",
+        serial,
     )
-    notification = _lines(
-        client.shell("settings get secure enabled_notification_listeners", serial=serial)
+    if error:
+        errors["overlay_appops"] = error
+    overlays = _lines(overlays_out)
+
+    notification_out, error = _safe_shell(
+        client,
+        "settings get secure enabled_notification_listeners",
+        serial,
     )
-    launcher = client.shell(
+    if error:
+        errors["notification_listeners"] = error
+    notification = _lines(notification_out)
+
+    launcher, error = _safe_shell(
+        client,
         "cmd package resolve-activity --brief -a android.intent.action.MAIN "
         "-c android.intent.category.HOME || true",
-        serial=serial,
-    ).strip()
+        serial,
+    )
+    if error:
+        errors["default_launcher"] = error
 
     return {
         "settings": settings,
@@ -58,7 +96,8 @@ def collect_security_state(client: AdbClient, serial: str) -> dict:
         "device_policy": admins,
         "overlay_appops": overlays,
         "notification_listeners": notification,
-        "default_launcher": launcher,
+        "default_launcher": launcher.strip(),
+        "collection_errors": errors,
     }
 
 
@@ -136,7 +175,19 @@ def collect_package_metadata(
 
 
 def collect_runtime(client: AdbClient, serial: str) -> dict:
+    processes, process_error = _safe_shell(client, "ps -A", serial)
+    services, services_error = _safe_shell(
+        client,
+        "dumpsys activity services",
+        serial,
+    )
+    errors = {}
+    if process_error:
+        errors["processes"] = process_error
+    if services_error:
+        errors["services"] = services_error
     return {
-        "processes": _lines(client.shell("ps -A", serial=serial))[:500],
-        "services": _lines(client.shell("dumpsys activity services", serial=serial))[:500],
+        "processes": _lines(processes)[:500],
+        "services": _lines(services)[:500],
+        "collection_errors": errors,
     }
