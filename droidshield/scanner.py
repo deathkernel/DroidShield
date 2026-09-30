@@ -142,7 +142,7 @@ def scan_device(
             })
 
     runtime = collect_runtime(client, resolved)
-    network = collect_network_state(client, resolved)
+    network = collect_network_state(client, resolved, runtime.get("processes", []))
     timeline = build_install_timeline(package_metadata)
     component_graph = build_component_graph(package_metadata, security)
     telephony = audit_call_forwarding(client, resolved)
