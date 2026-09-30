@@ -6,9 +6,13 @@ import re
 from .adb import AdbClient
 from .classifier import classify_package
 from .collectors import collect_package_metadata, collect_runtime, collect_security_state
+from .component_graph import build_component_graph
 from .detection import correlate
+from .diff import compare_reports
 from .hardening import recommendations
+from .network import collect_network_state
 from .telephony import audit_call_forwarding
+from .timeline import build_install_timeline
 from .rules import package_findings
 
 
@@ -48,6 +52,9 @@ def _collect_one(
         return {
             "package": package,
             "permissions": [],
+            "services": [],
+            "receivers": [],
+            "providers": [],
             "apk_paths": [],
             "apk_sha256": {},
             "collection_error": str(exc),
@@ -135,10 +142,13 @@ def scan_device(
             })
 
     runtime = collect_runtime(client, resolved)
+    network = collect_network_state(client, resolved)
+    timeline = build_install_timeline(package_metadata)
+    component_graph = build_component_graph(package_metadata, security)
     telephony = audit_call_forwarding(client, resolved)
 
     report = {
-        "schema_version": "0.4",
+        "schema_version": "0.6",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "device": {
             "serial": resolved,
@@ -162,7 +172,10 @@ def scan_device(
         "package_metadata": package_metadata,
         "package_assessments": package_assessments,
         "security": security,
+        "component_graph": component_graph,
+        "install_timeline": timeline,
         "runtime": runtime,
+        "network": network,
         "telephony": telephony,
         "findings": findings,
     }
