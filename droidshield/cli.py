@@ -10,7 +10,11 @@ from rich.console import Console
 from rich.table import Table
 
 from .adb import AdbError, AdbClient
-from .apk import ApkToolError, inspect_apk
+from .apk import (
+    ApkToolError,
+    acquire_package_apks,
+    inspect_apk,
+)
 from .classifier import classify_package
 from .collectors import collect_package_metadata
 from .forensics import save_evidence
@@ -75,9 +79,48 @@ def build_parser() -> argparse.ArgumentParser:
         help="Actually perform the requested action. Without this, the command is dry-run only.",
     )
 
+    package_apk = sub.add_parser(
+        "package-apk",
+        help="Acquire selected package APKs from a device for offline analysis.",
+    )
+    package_apk.add_argument("--serial", help="ADB device serial.")
+    package_apk.add_argument("--package", required=True, help="Android package name.")
+    package_apk.add_argument(
+        "--evidence-dir",
+        type=Path,
+        required=True,
+        help="Directory for pulled APKs and analysis evidence.",
+    )
+    package_apk.add_argument(
+        "--deep",
+        action="store_true",
+        help="Run apktool and JADX static analysis when installed.",
+    )
+    package_apk.add_argument(
+        "--rules",
+        type=Path,
+        help="Optional YARA rule file for the pulled APKs.",
+    )
+    package_apk.add_argument("--output", type=Path, help="Write the JSON acquisition/analysis report.")
+
     apk = sub.add_parser("apk", help="Inspect an APK without executing it.")
     apk.add_argument("path", type=Path)
     apk.add_argument("--output", type=Path)
+    apk.add_argument(
+        "--deep",
+        action="store_true",
+        help="Run apktool and JADX static analysis when installed.",
+    )
+    apk.add_argument(
+        "--work-dir",
+        type=Path,
+        help="Working directory for decoded/decompiled analysis.",
+    )
+    apk.add_argument(
+        "--rules",
+        type=Path,
+        help="Optional YARA rule file.",
+    )
 
     yara = sub.add_parser("yara", help="Scan a file/APK with an explicit YARA rule file.")
     yara.add_argument("path", type=Path)
@@ -237,6 +280,51 @@ def cmd_remediate(
     return 3
 
 
+def cmd_package_apk(
+    client: AdbClient,
+    serial: str | None,
+    package: str,
+    evidence_dir: Path,
+    deep: bool,
+    rules: Path | None,
+    output: Path | None,
+) -> int:
+    resolved = client.resolve_serial(serial)
+    evidence_dir.mkdir(parents=True, exist_ok=True)
+    acquisition = acquire_package_apks(
+        client,
+        resolved,
+        package,
+        evidence_dir,
+    )
+
+    analyses = []
+    for artifact in acquisition["artifacts"]:
+        if artifact.get("status") != "pulled":
+            continue
+        apk_path = Path(artifact["local_path"])
+        work_dir = apk_path.parent / (apk_path.stem + "-analysis")
+        analysis = inspect_apk(
+            apk_path,
+            deep=deep,
+            work_dir=work_dir,
+            yara_rules=rules,
+        )
+        analyses.append(analysis)
+
+    report = {
+        "schema_version": "1.0",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "serial": resolved,
+        "package": package,
+        "acquisition": acquisition,
+        "analyses": analyses,
+        "private_app_data_pulled": False,
+    }
+    write_json(report, output)
+    return 0
+
+
 def write_json(data: dict, output: Path | None) -> None:
     if output:
         output.parent.mkdir(parents=True, exist_ok=True)
@@ -273,8 +361,26 @@ def main() -> int:
                 args.evidence_dir,
                 args.confirm,
             )
+        if args.command == "package-apk":
+            return cmd_package_apk(
+                client,
+                args.serial,
+                args.package,
+                args.evidence_dir,
+                args.deep,
+                args.rules,
+                args.output,
+            )
         if args.command == "apk":
-            write_json(inspect_apk(args.path), args.output)
+            write_json(
+                inspect_apk(
+                    args.path,
+                    deep=args.deep,
+                    work_dir=args.work_dir,
+                    yara_rules=args.rules,
+                ),
+                args.output,
+            )
             return 0
         if args.command == "yara":
             write_json(scan_with_yara(args.path, args.rules), args.output)
