@@ -47,3 +47,42 @@ def build_install_timeline(package_metadata: list[dict[str, Any]]) -> list[dict[
             })
 
     return sorted(events, key=lambda event: event["timestamp"])
+
+
+def build_incident_timeline(
+    report: dict[str, Any],
+    remediation_records: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
+    events = list(build_install_timeline(report.get("package_metadata", [])))
+    scan_time = report.get("generated_at")
+
+    if scan_time:
+        events.append({
+            "timestamp": scan_time,
+            "type": "security_scan",
+            "risk_level": report.get("risk", {}).get("level"),
+            "risk_score": report.get("risk", {}).get("score"),
+        })
+
+        roles = report.get("security", {}).get("active_component_packages", {})
+        for role, packages in roles.items():
+            for package in packages:
+                events.append({
+                    "timestamp": scan_time,
+                    "type": "active_privileged_role",
+                    "package": package,
+                    "role": role,
+                })
+
+    for record in remediation_records or []:
+        timestamp = record.get("timestamp")
+        if timestamp:
+            events.append({
+                "timestamp": timestamp,
+                "type": "remediation",
+                "package": record.get("package"),
+                "action": record.get("action"),
+                "verified": record.get("verified"),
+            })
+
+    return sorted(events, key=lambda event: event.get("timestamp", ""))
