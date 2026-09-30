@@ -11,6 +11,7 @@ from rich.table import Table
 from .adb import AdbError, AdbClient
 from .apk import ApkToolError, inspect_apk
 from .forensics import save_evidence
+from .report import html_report, markdown_report
 from .scanner import scan_device
 from .tooling import capabilities
 from .yara import scan_with_yara
@@ -32,6 +33,8 @@ def build_parser() -> argparse.ArgumentParser:
     scan.add_argument("--serial", help="ADB device serial.")
     scan.add_argument("--output", type=Path, help="Write the full JSON report.")
     scan.add_argument("--evidence-dir", type=Path, help="Also save timestamped evidence.")
+    scan.add_argument("--markdown", type=Path, help="Write a Markdown report.")
+    scan.add_argument("--html", type=Path, help="Write an HTML report.")
 
     apk = sub.add_parser("apk", help="Inspect an APK without executing it.")
     apk.add_argument("path", type=Path)
@@ -69,7 +72,7 @@ def cmd_capabilities() -> int:
     return 0
 
 
-def cmd_scan(client: AdbClient, serial: str | None, output: Path | None, evidence_dir: Path | None) -> int:
+def cmd_scan(client: AdbClient, serial: str | None, output: Path | None, evidence_dir: Path | None, markdown: Path | None, html: Path | None) -> int:
     report = scan_device(client, serial)
     console.print(f"[bold]Device:[/bold] {report['device']['serial']}")
     console.print(f"[bold]Packages:[/bold] {len(report['packages'])}")
@@ -91,6 +94,12 @@ def cmd_scan(client: AdbClient, serial: str | None, output: Path | None, evidenc
     if evidence_dir:
         path = save_evidence(report, evidence_dir)
         console.print(f"[green]Evidence saved to {path}[/green]")
+    if markdown:
+        markdown.write_text(markdown_report(report), encoding="utf-8")
+        console.print(f"[green]Markdown report written to {markdown}[/green]")
+    if html:
+        html.write_text(html_report(report), encoding="utf-8")
+        console.print(f"[green]HTML report written to {html}[/green]")
     return 0
 
 
@@ -111,7 +120,7 @@ def main() -> int:
         if args.command == "capabilities":
             return cmd_capabilities()
         if args.command == "scan":
-            return cmd_scan(client, args.serial, args.output, args.evidence_dir)
+            return cmd_scan(client, args.serial, args.output, args.evidence_dir, args.markdown, args.html)
         if args.command == "apk":
             write_json(inspect_apk(args.path), args.output)
             return 0
