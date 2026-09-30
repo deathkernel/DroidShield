@@ -11,6 +11,7 @@ def markdown_report(report: dict) -> str:
     telephony = report.get("telephony", {})
     graph = report.get("component_graph", {})
     timeline = report.get("install_timeline", [])
+    incident_timeline = report.get("incident_timeline", [])
     network = report.get("network", {})
     runtime = report.get("runtime", {})
     signing_packages = [
@@ -63,6 +64,14 @@ def markdown_report(report: dict) -> str:
                 f"- {event.get('timestamp')} — {event.get('type')} — "
                 f"{event.get('package')} — installer: {installer}"
             )
+
+    lines += ["", "## Incident timeline", ""]
+    if not incident_timeline:
+        lines.append("No incident timeline events were available.")
+    else:
+        for event in incident_timeline[:150]:
+            details = ", ".join(f"{key}={value}" for key, value in event.items() if key not in {"timestamp", "type"})
+            lines.append(f"- {event.get("timestamp")} — {event.get("type")} — {details}")
 
     lines += ["", "## Findings", ""]
     findings = report.get("findings", [])
