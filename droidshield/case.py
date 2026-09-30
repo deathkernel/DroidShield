@@ -32,20 +32,30 @@ def build_case_bundle(
 
     artifacts = []
     for path in sorted(case_dir.rglob("*")):
-        if not path.is_file() or path.name == "evidence-manifest.json":
+        if not path.is_file() or path.name in {
+            "evidence-manifest.json",
+            "evidence-manifest.sha256",
+        }:
             continue
         artifacts.append({
-            "path": str(path.relative_to(case_dir)).replace("\\", "/"),
+            "path": str(path.relative_to(case_dir)).replace("\", "/"),
             "size": path.stat().st_size,
             "sha256": _sha256(path),
         })
 
     manifest = {
-        "schema_version": "1.1",
+        "schema_version": "1.2",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "artifacts": artifacts,
     }
     manifest_path = case_dir / "evidence-manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
-    manifest["manifest_sha256"] = _sha256(manifest_path)
-    return manifest
+
+    manifest_hash = _sha256(manifest_path)
+    hash_path = case_dir / "evidence-manifest.sha256"
+    hash_path.write_text(f"{manifest_hash}  evidence-manifest.json\n", encoding="utf-8")
+
+    return {
+        **manifest,
+        "manifest_sha256": manifest_hash,
+    }
