@@ -71,7 +71,7 @@ def markdown_report(report: dict) -> str:
     else:
         for event in incident_timeline[:150]:
             details = ", ".join(f"{key}={value}" for key, value in event.items() if key not in {"timestamp", "type"})
-            lines.append(f"- {event.get("timestamp")} — {event.get("type")} — {details}")
+            lines.append(f"- {event.get('timestamp')} — {event.get('type')} — {details}")
 
     lines += ["", "## Findings", ""]
     findings = report.get("findings", [])
