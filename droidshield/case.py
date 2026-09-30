@@ -38,7 +38,7 @@ def build_case_bundle(
         }:
             continue
         artifacts.append({
-            "path": str(path.relative_to(case_dir)).replace("\", "/"),
+            "path": str(path.relative_to(case_dir)).replace("\\", "/"),
             "size": path.stat().st_size,
             "sha256": _sha256(path),
         })
