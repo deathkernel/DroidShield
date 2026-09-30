@@ -5,7 +5,7 @@ import re
 from .adb import AdbClient
 
 
-PACKAGE_RE = re.compile(r"^[A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)+$")
+PACKAGE_RE = re.compile(r"^[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+$")
 SYSTEM_PATH_PREFIXES = (
     "/system/",
     "/system_ext/",
@@ -98,8 +98,15 @@ def collect_package_metadata(
     uid = _first_match(r"userId=(\d+)", dump)
     enabled_raw = _first_match(r"enabled=(true|false)", dump)
 
-    pkg_flags_match = re.search(r"pkgFlags=\[([^\]]+)\]", dump, flags=re.IGNORECASE)
-    pkg_flags = pkg_flags_match.group(1).strip().split() if pkg_flags_match else []
+    pkg_flags_match = re.search(
+        r"pkgFlags=\[([^\]]+)\]",
+        dump,
+        flags=re.IGNORECASE,
+    )
+    pkg_flags = (
+        pkg_flags_match.group(1).strip().split()
+        if pkg_flags_match else []
+    )
 
     try:
         hashes = client.package_sha256(serial, package) if hash_apk else {}
