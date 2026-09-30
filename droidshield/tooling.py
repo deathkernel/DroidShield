@@ -6,6 +6,7 @@ import shutil
 TOOLS = {
     "adb": "adb",
     "aapt2": "aapt2",
+    "apksigner": "apksigner",
     "apktool": "apktool",
     "jadx": "jadx",
     "yara": "yara",
