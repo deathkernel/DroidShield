@@ -6,30 +6,39 @@ DroidShield is a defensive Android security and incident-response toolkit design
 
 Identify potentially malicious or abusive Android applications and configurations, preserve useful evidence, safely remediate supported findings, and verify the result.
 
-DroidShield is **not** an attacker-hunting framework. Its primary focus is malware identification, device/app integrity, remediation, and hardening.
+DroidShield is not an attacker-hunting framework. Its primary focus is malware identification, device/app integrity, remediation, and hardening.
 
 ## Current capabilities
 
 - ADB device discovery and authorized-device selection
 - Device inventory and Android build/security-patch metadata
-- Complete installed-package inventory with third-party package separation
+- Installed-package inventory with third-party package separation
 - Package permission and component triage
 - APK paths, version/install/update metadata, installer package, UID, and optional SHA-256 evidence
-- System-package protection using APK path / PackageManager flags with a conservative package-name fallback
+- Conservative system-package protection using APK path, PackageManager flags, and package-prefix fallback
 - Accessibility, device-policy, overlay, notification-listener, and default-launcher indicators
-- Correlation between active privileged components and the packages that declare sensitive capabilities
-- Runtime process/service collection with vendor-command failure recording
+- Active privileged component to package correlation
+- Component graph of packages, services, receivers, providers, and active roles
+- Install/update timeline reconstruction from PackageManager metadata
+- Runtime process/service collection
+- Filtered security-focused logcat evidence
+- Socket/connectivity collection where exposed by the device
 - Telephony/call-forwarding audit framework with explicit verification status
 - APK SHA-256 hashing and AAPT2 metadata inspection
+- APK signing certificate analysis with apksigner when installed
 - Offline deep APK analysis with apktool and JADX when installed
 - Optional YARA scanning with user-supplied rules
+- Included defensive Android YARA triage rules
 - Selected installed-package APK acquisition for offline analysis
 - Heuristic risk scoring with confidence and explicit heuristic labeling
 - Hardening recommendations
 - Timestamped JSON forensic evidence
 - Human-readable Markdown and HTML reports
 - Guarded package remediation with dry-run, evidence snapshot, explicit confirmation, post-action verification, and before/after rescan diff
-- Local tool capability detection
+- Reversible user-package enable workflow after a controlled disable
+- One-command incident-response case bundles with SHA-256 evidence manifests
+- Regression tests for collection, analysis, correlation, remediation, acquisition, and case integrity
+- Local Kali tool capability detection
 
 ## Kali toolchain
 
@@ -37,6 +46,7 @@ DroidShield can integrate with tools installed on the host, including:
 
 - Android platform-tools / ADB
 - AAPT2
+- apksigner
 - apktool
 - JADX
 - YARA
@@ -44,124 +54,107 @@ DroidShield can integrate with tools installed on the host, including:
 
 Missing tools are reported as unavailable; DroidShield does not fabricate results.
 
-## Quick start
+## Installation
 
-Install:
-
-```bash
-python3 -m pip install -e ".[test]"
-```
+    python3 -m pip install -e ".[test]"
 
 Check the environment:
 
-```bash
-droidshield capabilities
-```
+    droidshield capabilities
+
+## Device scan
 
 Connect an authorized Android device with USB debugging enabled:
 
-```bash
-droidshield devices
-droidshield scan --output report.json --evidence-dir evidence/
-```
+    droidshield devices
+    droidshield scan --output report.json --evidence-dir evidence/
 
-For deeper package evidence, including remote SHA-256 hashes for analyzed third-party APKs when the device supports hashing:
+For deeper package evidence, including device-side SHA-256 hashes for analyzed third-party APKs when supported:
 
-```bash
-droidshield scan --hash-apks --output report.json --evidence-dir evidence/ --markdown report.md --html report.html
-```
+    droidshield scan --hash-apks --output report.json --evidence-dir evidence/ --markdown report.md --html report.html
+
+## APK analysis
 
 Inspect an APK without executing it:
 
-```bash
-droidshield apk sample.apk
-```
+    droidshield apk sample.apk
 
-Run offline static analysis with apktool and JADX:
+Run apktool/JADX offline static analysis:
 
-```bash
-droidshield apk sample.apk --deep --work-dir evidence/sample-analysis
-```
+    droidshield apk sample.apk --deep --work-dir evidence/sample-analysis
 
-Run an explicit YARA rule set:
+Run an explicit YARA ruleset:
 
-```bash
-droidshield yara sample.apk --rules rules/android.yar
-```
+    droidshield yara sample.apk --rules rules/android_triage.yar
 
-## Acquire an installed APK for analysis
+APK analysis records the SHA-256 of the local artifact. When apksigner is installed, certificate digest information is also collected.
 
-For a package already installed on an authorized device, DroidShield can pull only the APK artifacts exposed by PackageManager. It does not pull private application data.
+## Acquire an installed APK
 
-```bash
-droidshield package-apk --package com.example.suspicious --evidence-dir evidence/apk-case
-```
+For a selected package already installed on an authorized device:
 
-For deeper offline analysis of every successfully pulled APK:
+    droidshield package-apk --package com.example.suspicious --evidence-dir evidence/apk-case
 
-```bash
-droidshield package-apk --package com.example.suspicious --evidence-dir evidence/apk-case --deep
-```
+For deeper offline analysis:
 
-Add a defensive YARA ruleset to the same analysis:
+    droidshield package-apk --package com.example.suspicious --evidence-dir evidence/apk-case --deep --rules rules/android_triage.yar
 
-```bash
-droidshield package-apk --package com.example.suspicious --evidence-dir evidence/apk-case --deep --rules rules/android.yar
-```
-
-Acquisition records retain remote APK paths, local artifact paths, SHA-256 hashes, sizes, and pull failures.
+Only APK artifacts exposed by PackageManager are requested. Private application data is not pulled.
 
 ## Guarded remediation
 
-Remediation is **dry-run by default** and requires an evidence directory plus an explicit confirmation flag.
+Remediation is dry-run by default:
 
-Preview and preserve evidence without changing the device:
-
-```bash
-droidshield remediate --package com.example.suspicious --action disable --evidence-dir evidence/
-```
+    droidshield remediate --package com.example.suspicious --action disable --evidence-dir evidence/
 
 Actually disable the package:
 
-```bash
-droidshield remediate --package com.example.suspicious --action disable --evidence-dir evidence/ --confirm
-```
+    droidshield remediate --package com.example.suspicious --action disable --evidence-dir evidence/ --confirm
 
-For a user-installed package that should be removed from the primary user:
+Remove a user-installed package from the primary user:
 
-```bash
-droidshield remediate --package com.example.suspicious --action uninstall --evidence-dir evidence/ --confirm
-```
+    droidshield remediate --package com.example.suspicious --action uninstall --evidence-dir evidence/ --confirm
 
-DroidShield refuses destructive actions for packages that appear to belong to protected Android system components. It validates package names before building ADB commands, preserves a dumpsys package snapshot before changes, records the action result, and performs a post-action verification.
+Restore a package previously disabled by a controlled workflow:
 
-## Before/after remediation evidence
+    droidshield remediate --package com.example.suspicious --action restore --evidence-dir evidence/ --confirm
 
-After a confirmed remediation action, DroidShield captures a pre-remediation scan, runs the requested change, verifies the package state, captures a post-remediation scan, and records a structured diff of package changes, active security components, findings, and heuristic risk score.
+Before a confirmed destructive action, DroidShield records a package snapshot and a pre-remediation scan. After the action it verifies package state, performs a post-remediation scan, computes a before/after diff, and records the complete remediation result.
+
+## Incident-response case bundle
+
+Create a complete case directory from one scan:
+
+    droidshield case --output case-001 --hash-apks --markdown --html
+
+The case bundle includes report.json, optional report.md, optional report.html, and evidence-manifest.json with SHA-256 hashes for case artifacts.
 
 ## Safety model
 
-DroidShield separates collection, analysis, remediation, and verification. A sensitive permission is **not** proof of malware: accessibility, overlays, SMS, microphone, camera, and package-install capabilities can be legitimate. Risk scoring is therefore heuristic and should be reviewed alongside package provenance, active component state, APK evidence, and the observed device behavior.
+A sensitive permission is not proof of malware. Accessibility, overlays, SMS, microphone, camera, and package-install capabilities can all be legitimate. Risk scoring is heuristic and should be reviewed alongside package provenance, active component state, APK evidence, and observed device behavior.
 
-Call forwarding is carrier/network dependent. DroidShield does not automatically place calls or trigger USSD/MMI actions. Reports include standard query codes and mark forwarding as **unverified** until a carrier/device-specific or manual verification supplies an authoritative result.
+DroidShield does not execute APKs during analysis.
+
+Call forwarding is carrier/network dependent. DroidShield does not automatically place calls or trigger USSD/MMI actions. Reports include standard query codes and mark forwarding as unverified until a carrier/device-specific or manual verification supplies an authoritative result.
 
 Run only against devices you own or are authorized to assess.
 
 ## Evidence and limitations
 
-Regular scans prioritize third-party packages and a bounded sample of system packages for detailed metadata. Use --hash-apks when you want package APK hashes collected from the device where supported.
+Some Android vendors expose different diagnostics through dumpsys, cmd, settings, or PackageManager. Collection errors are retained in reports instead of being treated as negative security results.
 
-Deep APK analysis runs locally against acquired APK artifacts. apktool/JADX failures, timeouts, unsupported vendor diagnostics, and other collection errors are recorded instead of being treated as evidence of a clean device.
+Regular scans deeply analyze third-party packages plus a bounded sample of system packages. Use selected APK acquisition for deeper analysis of a specific package.
 
-DroidShield does not execute APKs and does not pull private application data as part of the package acquisition workflow.
+Runtime/network observations are snapshots, not continuous monitoring, and a lack of visible evidence does not prove that no malicious activity exists.
+
+The included YARA rules are triage signatures, not malware verdicts.
 
 ## Roadmap
 
-1. Rich manifest/component graphing across APK and device state
-2. Curated defensive YARA rule packs and signature management
-3. Stronger privilege-abuse correlation across Android component declarations
-4. Selected artifact diffing across app updates/reinstalls
-5. Post-remediation automatic rescan and before/after comparison
-6. Vendor-specific telephony verification adapters
-7. Evidence-chain hashing and incident timelines
-8. Controlled Android emulator/device integration tests
+1. Stronger component export/intent-filter graphing
+2. Signature/certificate comparison across app updates
+3. More vendor-specific telephony adapters
+4. Richer network endpoint and UID-to-process attribution
+5. Android emulator/device integration fixtures in CI
+6. Expanded defensive YARA regression corpus
+7. Evidence timelines combining package, privilege, runtime, and remediation events
