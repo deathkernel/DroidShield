@@ -23,32 +23,29 @@ def build_case_bundle(
 ) -> dict[str, Any]:
     case_dir.mkdir(parents=True, exist_ok=True)
     report_path = case_dir / "report.json"
-    report_path.write_text(
-        json.dumps(report, indent=2),
-        encoding="utf-8",
-    )
-
-    artifacts = [{"path": report_path.name, "sha256": _sha256(report_path)}]
+    report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
 
     if markdown is not None:
-        md_path = case_dir / "report.md"
-        md_path.write_text(markdown, encoding="utf-8")
-        artifacts.append({"path": md_path.name, "sha256": _sha256(md_path)})
-
+        (case_dir / "report.md").write_text(markdown, encoding="utf-8")
     if html is not None:
-        html_path = case_dir / "report.html"
-        html_path.write_text(html, encoding="utf-8")
-        artifacts.append({"path": html_path.name, "sha256": _sha256(html_path)})
+        (case_dir / "report.html").write_text(html, encoding="utf-8")
+
+    artifacts = []
+    for path in sorted(case_dir.rglob("*")):
+        if not path.is_file() or path.name == "evidence-manifest.json":
+            continue
+        artifacts.append({
+            "path": str(path.relative_to(case_dir)).replace("\\", "/"),
+            "size": path.stat().st_size,
+            "sha256": _sha256(path),
+        })
 
     manifest = {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "artifacts": artifacts,
     }
     manifest_path = case_dir / "evidence-manifest.json"
-    manifest_path.write_text(
-        json.dumps(manifest, indent=2),
-        encoding="utf-8",
-    )
+    manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     manifest["manifest_sha256"] = _sha256(manifest_path)
     return manifest
