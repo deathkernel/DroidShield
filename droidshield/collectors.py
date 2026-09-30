@@ -32,11 +32,7 @@ def collect_security_state(client: AdbClient, serial: str) -> dict:
     errors = {}
 
     for namespace in ("secure", "global"):
-        out, error = _safe_shell(
-            client,
-            f"settings list {namespace}",
-            serial,
-        )
+        out, error = _safe_shell(client, f"settings list {namespace}", serial)
         if error:
             settings[namespace] = {}
             errors[f"settings_{namespace}"] = error
@@ -129,11 +125,11 @@ def collect_package_metadata(
         set(re.findall(r"android\.permission\.[A-Z0-9_]+", dump))
     )
 
-    version_name = _first_match(r"versionName=([^\s]+)", dump)
+    version_name = _first_match(r"versionName=([^\s}]+)", dump)
     version_code = _first_match(r"versionCode=(\d+)", dump)
-    first_install = _first_match(r"firstInstallTime=([^\n]+)", dump)
-    last_update = _first_match(r"lastUpdateTime=([^\n]+)", dump)
-    installer = _first_match(r"installerPackageName=([^\s]+)", dump)
+    first_install = _first_match(r"firstInstallTime=([^\n}]+)", dump)
+    last_update = _first_match(r"lastUpdateTime=([^\n}]+)", dump)
+    installer = _first_match(r"installerPackageName=([^\s}]+)", dump)
     uid = _first_match(r"userId=(\d+)", dump)
     enabled_raw = _first_match(r"enabled=(true|false)", dump)
 
