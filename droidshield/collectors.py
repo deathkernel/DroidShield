@@ -102,6 +102,10 @@ def _first_match(pattern: str, text: str, flags: int = 0) -> str | None:
     return match.group(1).strip() if match else None
 
 
+def _component_names(pattern: str, text: str) -> list[str]:
+    return sorted(set(re.findall(pattern, text, flags=re.IGNORECASE)))
+
+
 def _all_paths_system(paths: list[str]) -> bool:
     return bool(paths) and all(
         any(path.startswith(prefix) for prefix in SYSTEM_PATH_PREFIXES)
@@ -123,6 +127,19 @@ def collect_package_metadata(
 
     permissions = sorted(
         set(re.findall(r"android\.permission\.[A-Z0-9_]+", dump))
+    )
+
+    services = _component_names(
+        r"(?:ServiceInfo|service)\{[^}]*\s([A-Za-z0-9_.$/]+)",
+        dump,
+    )
+    receivers = _component_names(
+        r"(?:ReceiverList|receiver)\{[^}]*\s([A-Za-z0-9_.$/]+)",
+        dump,
+    )
+    providers = _component_names(
+        r"(?:ProviderInfo|provider)\{[^}]*\s([A-Za-z0-9_.$/]+)",
+        dump,
     )
 
     version_name = _first_match(r"versionName=([^\s}]+)", dump)
@@ -154,6 +171,9 @@ def collect_package_metadata(
     return {
         "package": package,
         "permissions": permissions,
+        "services": services,
+        "receivers": receivers,
+        "providers": providers,
         "apk_paths": paths,
         "apk_sha256": hashes,
         "version_name": version_name,
