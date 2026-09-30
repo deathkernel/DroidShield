@@ -10,7 +10,9 @@ from rich.table import Table
 
 from .adb import AdbError, AdbClient
 from .apk import ApkToolError, inspect_apk
+from .forensics import save_evidence
 from .scanner import scan_device
+from .tooling import capabilities
 from .yara import scan_with_yara
 
 console = Console()
@@ -24,10 +26,12 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
 
     sub.add_parser("devices", help="List connected Android devices.")
+    sub.add_parser("capabilities", help="Show available local analysis tools.")
 
     scan = sub.add_parser("scan", help="Run a deep read-only security inventory.")
     scan.add_argument("--serial", help="ADB device serial.")
     scan.add_argument("--output", type=Path, help="Write the full JSON report.")
+    scan.add_argument("--evidence-dir", type=Path, help="Also save timestamped evidence.")
 
     apk = sub.add_parser("apk", help="Inspect an APK without executing it.")
     apk.add_argument("path", type=Path)
@@ -55,7 +59,17 @@ def cmd_devices(client: AdbClient) -> int:
     return 0
 
 
-def cmd_scan(client: AdbClient, serial: str | None, output: Path | None) -> int:
+def cmd_capabilities() -> int:
+    table = Table(title="DroidShield - Analysis Capabilities")
+    table.add_column("Tool")
+    table.add_column("Available")
+    for name, available in capabilities().items():
+        table.add_row(name, "YES" if available else "NO")
+    console.print(table)
+    return 0
+
+
+def cmd_scan(client: AdbClient, serial: str | None, output: Path | None, evidence_dir: Path | None) -> int:
     report = scan_device(client, serial)
     console.print(f"[bold]Device:[/bold] {report['device']['serial']}")
     console.print(f"[bold]Packages:[/bold] {len(report['packages'])}")
@@ -66,9 +80,17 @@ def cmd_scan(client: AdbClient, serial: str | None, output: Path | None) -> int:
         style = "red" if finding["severity"] == "HIGH" else "yellow"
         console.print(f"[{style}]{finding['severity']}: {finding['title']}[/]")
 
+    if report["hardening"]:
+        console.print("\n[bold]Hardening recommendations[/bold]")
+        for item in report["hardening"]:
+            console.print(f"  • {item}")
+
     if output:
         output.write_text(json.dumps(report, indent=2), encoding="utf-8")
-        console.print(f"[green]Evidence report written to {output}[/green]")
+        console.print(f"[green]Report written to {output}[/green]")
+    if evidence_dir:
+        path = save_evidence(report, evidence_dir)
+        console.print(f"[green]Evidence saved to {path}[/green]")
     return 0
 
 
@@ -86,8 +108,10 @@ def main() -> int:
     try:
         if args.command == "devices":
             return cmd_devices(client)
+        if args.command == "capabilities":
+            return cmd_capabilities()
         if args.command == "scan":
-            return cmd_scan(client, args.serial, args.output)
+            return cmd_scan(client, args.serial, args.output, args.evidence_dir)
         if args.command == "apk":
             write_json(inspect_apk(args.path), args.output)
             return 0
