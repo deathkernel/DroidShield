@@ -28,7 +28,7 @@ DroidShield is **not** an attacker-hunting framework. Its primary focus is malwa
 - Hardening recommendations
 - Timestamped JSON forensic evidence
 - Human-readable Markdown and HTML reports
-- Guarded package remediation with dry-run, evidence snapshot, explicit confirmation, and post-action verification
+- Guarded package remediation with dry-run, evidence snapshot, explicit confirmation, post-action verification, and before/after rescan diff
 - Local tool capability detection
 
 ## Kali toolchain
@@ -134,6 +134,10 @@ droidshield remediate --package com.example.suspicious --action uninstall --evid
 ```
 
 DroidShield refuses destructive actions for packages that appear to belong to protected Android system components. It validates package names before building ADB commands, preserves a dumpsys package snapshot before changes, records the action result, and performs a post-action verification.
+
+## Before/after remediation evidence
+
+After a confirmed remediation action, DroidShield captures a pre-remediation scan, runs the requested change, verifies the package state, captures a post-remediation scan, and records a structured diff of package changes, active security components, findings, and heuristic risk score.
 
 ## Safety model
 
