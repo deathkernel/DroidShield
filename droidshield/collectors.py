@@ -197,13 +197,23 @@ def collect_runtime(client: AdbClient, serial: str) -> dict:
         "dumpsys activity services",
         serial,
     )
+    logcat, logcat_error = _safe_shell(
+        client,
+        "logcat -d -t 1200 2>/dev/null | "
+        "grep -Ei 'PackageManager|ActivityManager|accessibility|device.?admin|"
+        "overlay|permission|install|denied|security' | tail -n 500 || true",
+        serial,
+    )
     errors = {}
     if process_error:
         errors["processes"] = process_error
     if services_error:
         errors["services"] = services_error
+    if logcat_error:
+        errors["logcat_security"] = logcat_error
     return {
         "processes": _lines(processes)[:500],
         "services": _lines(services)[:500],
+        "logcat_security": _lines(logcat)[:500],
         "collection_errors": errors,
     }
