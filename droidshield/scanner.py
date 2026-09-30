@@ -4,9 +4,10 @@ from datetime import datetime, timezone
 
 from .adb import AdbClient
 from .collectors import collect_package_metadata, collect_runtime, collect_security_state
-from .risk import score_findings
-from .rules import package_findings
+from .detection import correlate
+from .hardening import recommendations
 from .telephony import audit_call_forwarding
+from .rules import package_findings
 
 
 def scan_device(client: AdbClient, serial: str | None = None) -> dict:
@@ -24,7 +25,7 @@ def scan_device(client: AdbClient, serial: str | None = None) -> dict:
     telephony = audit_call_forwarding(client, resolved)
 
     report = {
-        "schema_version": "0.2",
+        "schema_version": "0.3",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "device": {
             "serial": resolved,
@@ -50,5 +51,6 @@ def scan_device(client: AdbClient, serial: str | None = None) -> dict:
             for f in findings
         ],
     }
-    report["risk"] = score_findings(report)
+    report["risk"] = correlate(report)
+    report["hardening"] = recommendations(report)
     return report
