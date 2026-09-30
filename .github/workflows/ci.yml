@@ -2,7 +2,23 @@ name: CI
 
 on:
   push:
+    paths:
+      - "droidshield/**"
+      - "tests/**"
+      - "rules/**"
+      - "pyproject.toml"
+      - ".github/workflows/ci.yml"
   pull_request:
+    paths:
+      - "droidshield/**"
+      - "tests/**"
+      - "rules/**"
+      - "pyproject.toml"
+      - ".github/workflows/ci.yml"
+
+concurrency:
+  group: droidshield-ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
