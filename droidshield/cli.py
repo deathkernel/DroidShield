@@ -371,13 +371,23 @@ def cmd_package_apk(
         )
         analyses.append(analysis)
 
+    signer_sets = [
+        tuple(
+            item.get("signing", {}).get("certificate_digests", {}).get("sha256", [])
+        )
+        for item in analyses
+        if item.get("signing")
+    ]
+    signing_consistent = len(set(signer_sets)) <= 1 if signer_sets else None
+
     report = {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "serial": resolved,
         "package": package,
         "acquisition": acquisition,
         "analyses": analyses,
+        "signing_consistency": signing_consistent,
         "private_app_data_pulled": False,
     }
     write_json(report, output)
