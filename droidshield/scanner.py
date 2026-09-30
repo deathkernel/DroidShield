@@ -12,20 +12,47 @@ from .telephony import audit_call_forwarding
 from .rules import package_findings
 
 
+PACKAGE_RE = re.compile(r"^[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+$")
+
+
 def _component_packages(values: list[str] | str | None) -> list[str]:
     if isinstance(values, str):
         values = [values]
     result = set()
     for value in values or []:
-        for token in re.split(r"[:\\s,]+", value):
+        for token in re.split(r"[:\s,]+", value):
             token = token.strip()
             if "/" in token:
                 package = token.split("/", 1)[0]
             else:
                 package = token
-            if re.fullmatch(r"[A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)+", package):
+            if PACKAGE_RE.fullmatch(package):
                 result.add(package)
     return sorted(result)
+
+
+def _collect_one(
+    client: AdbClient,
+    serial: str,
+    package: str,
+    hash_apk: bool,
+) -> dict:
+    try:
+        return collect_package_metadata(
+            client,
+            serial,
+            package,
+            hash_apk=hash_apk,
+        )
+    except Exception as exc:
+        return {
+            "package": package,
+            "permissions": [],
+            "apk_paths": [],
+            "apk_sha256": {},
+            "collection_error": str(exc),
+            "raw_size": 0,
+        }
 
 
 def scan_device(
@@ -42,20 +69,20 @@ def scan_device(
     except Exception:
         third_party = []
 
+    third_party_set = set(third_party)
     target_packages = (
-        sorted(set(third_party))
-        + [p for p in packages if p not in set(third_party)][:100]
-    )
-    target_packages = target_packages[:500]
+        sorted(third_party_set)
+        + [p for p in packages if p not in third_party_set][:100]
+    )[:500]
 
     findings = package_findings(packages)
     security = collect_security_state(client, resolved)
     package_metadata = [
-        collect_package_metadata(
+        _collect_one(
             client,
             resolved,
             package,
-            hash_apk=hash_apks and package in set(third_party),
+            hash_apk=hash_apks and package in third_party_set,
         )
         for package in target_packages
     ]
@@ -72,8 +99,25 @@ def scan_device(
         "launcher": _component_packages(security.get("default_launcher")),
     }
 
+    for item in package_metadata:
+        if item.get("collection_error"):
+            findings.append({
+                "severity": "LOW",
+                "title": "Package metadata could not be collected",
+                "description": (
+                    "The package was discovered, but some forensic metadata could not "
+                    "be collected. Investigate the error before treating the package as clean."
+                ),
+                "package": item["package"],
+                "evidence": {"error": item["collection_error"]},
+            })
+
     for assessment in package_assessments:
         if assessment["level"] == "HIGH" and not assessment["protected_system"]:
+            metadata = next(
+                item for item in package_metadata
+                if item["package"] == assessment["package"]
+            )
             findings.append({
                 "severity": "MEDIUM",
                 "title": "High-risk app capability combination",
@@ -85,14 +129,8 @@ def scan_device(
                 "evidence": {
                     "score": assessment["score"],
                     "signals": assessment["signals"],
-                    "apk_paths": next(
-                        (
-                            item.get("apk_paths", [])
-                            for item in package_metadata
-                            if item["package"] == assessment["package"]
-                        ),
-                        [],
-                    ),
+                    "apk_paths": metadata.get("apk_paths", []),
+                    "apk_sha256": metadata.get("apk_sha256", {}),
                 },
             })
 
@@ -116,6 +154,9 @@ def scan_device(
             "packages_total": len(packages),
             "third_party_total": len(third_party),
             "packages_analyzed": len(package_metadata),
+            "packages_with_collection_errors": sum(
+                1 for item in package_metadata if item.get("collection_error")
+            ),
             "hash_apks": hash_apks,
         },
         "package_metadata": package_metadata,
