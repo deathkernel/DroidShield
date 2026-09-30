@@ -158,3 +158,12 @@ The included YARA rules are triage signatures, not malware verdicts.
 5. Android emulator/device integration fixtures in CI
 6. Expanded defensive YARA regression corpus
 7. Evidence timelines combining package, privilege, runtime, and remediation events
+
+
+## APK before/after comparison
+
+Compare two preserved APK artifacts to identify hash changes, size deltas, and signer-certificate changes when apksigner is available:
+
+    droidshield apk-diff before.apk after.apk --output apk-diff.json
+
+A changed APK hash is expected after an application update. A signer change is a separate provenance signal that should be reviewed in context.
