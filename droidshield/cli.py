@@ -202,8 +202,7 @@ def cmd_scan(
         )
 
     if report["hardening"]:
-        console.print("
-[bold]Hardening recommendations[/bold]")
+        console.print("\n[bold]Hardening recommendations[/bold]")
         for item in report["hardening"]:
             console.print(f"  • {item}")
 
@@ -458,8 +457,7 @@ def main() -> int:
         console.print(f"[red]DroidShield error:[/red] {exc}")
         return 2
     except KeyboardInterrupt:
-        console.print("
-[yellow]Interrupted.[/yellow]")
+        console.print("\n[yellow]Interrupted.[/yellow]")
         return 130
     return 1
 
