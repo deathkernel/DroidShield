@@ -17,6 +17,7 @@ from .apk import (
 )
 from .classifier import classify_package
 from .collectors import collect_package_metadata
+from .diff import compare_reports
 from .forensics import save_evidence
 from .remediation import (
     RemediationRefused,
@@ -183,7 +184,8 @@ def cmd_scan(
         )
 
     if report["hardening"]:
-        console.print("\n[bold]Hardening recommendations[/bold]")
+        console.print("
+[bold]Hardening recommendations[/bold]")
         for item in report["hardening"]:
             console.print(f"  • {item}")
 
@@ -239,6 +241,10 @@ def cmd_remediate(
             "The package is protected by Android system evidence and cannot be remediated by DroidShield."
         )
 
+    pre_scan = scan_device(client, resolved, hash_apks=False)
+    pre_scan_path = save_evidence(pre_scan, evidence_dir / "pre-remediation")
+    console.print(f"[green]Pre-remediation scan:[/green] {pre_scan_path}")
+
     result = (
         disable_package(client, resolved, package, confirmed=True)
         if action == "disable"
@@ -250,31 +256,53 @@ def cmd_remediate(
         else verify_absent(client, resolved, package)
     )
 
+    post_scan = None
+    post_scan_path = None
+    diff = None
+    post_scan_error = None
+    try:
+        post_scan = scan_device(client, resolved, hash_apks=False)
+        post_scan_path = save_evidence(post_scan, evidence_dir / "post-remediation")
+        diff = compare_reports(pre_scan, post_scan)
+        console.print(
+            f"[bold]Risk delta:[/bold] {diff['risk']['score_delta']:+d}"
+        )
+    except Exception as exc:
+        post_scan_error = str(exc)
+        console.print(
+            f"[yellow]Post-remediation rescan unavailable: {post_scan_error}[/yellow]"
+        )
+
     record = {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "serial": resolved,
         "package": package,
         "action": action,
         "before_snapshot": str(snapshot),
+        "pre_scan": str(pre_scan_path),
+        "post_scan": str(post_scan_path) if post_scan_path else None,
         "assessment": assessment,
         "result": {
             "success": result.success,
             "output": result.output,
         },
         "verified": verified,
+        "post_scan_error": post_scan_error,
+        "diff": diff,
     }
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     record_path = evidence_dir / f"{package.replace('.', '_')}-remediation-{stamp}.json"
     record_path.write_text(json.dumps(record, indent=2), encoding="utf-8")
 
-    if result.success and verified:
+    if result.success and verified and post_scan_error is None:
         console.print(f"[green]Remediation completed and verified: {action}[/green]")
         console.print(f"[green]Record: {record_path}[/green]")
         return 0
 
     console.print(
-        f"[red]Remediation requires review: action_success={result.success}, verified={verified}[/red]"
+        f"[red]Remediation requires review: action_success={result.success}, "
+        f"verified={verified}, post_scan_ok={post_scan_error is None}[/red]"
     )
     console.print(f"[red]Record: {record_path}[/red]")
     return 3
@@ -389,7 +417,8 @@ def main() -> int:
         console.print(f"[red]DroidShield error:[/red] {exc}")
         return 2
     except KeyboardInterrupt:
-        console.print("\n[yellow]Interrupted.[/yellow]")
+        console.print("
+[yellow]Interrupted.[/yellow]")
         return 130
     return 1
 
