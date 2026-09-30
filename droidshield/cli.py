@@ -10,6 +10,7 @@ from rich.console import Console
 from rich.table import Table
 
 from .adb import AdbError, AdbClient
+from .case import build_case_bundle
 from .apk import (
     ApkToolError,
     acquire_package_apks,
@@ -26,6 +27,8 @@ from .remediation import (
     uninstall_package,
     verify_absent,
     verify_disabled,
+    enable_package,
+    verify_enabled,
 )
 from .report import html_report, markdown_report
 from .scanner import scan_device
@@ -65,7 +68,7 @@ def build_parser() -> argparse.ArgumentParser:
     remediate.add_argument("--package", required=True, help="Android package name.")
     remediate.add_argument(
         "--action",
-        choices=("disable", "uninstall"),
+        choices=("disable", "uninstall", "restore"),
         default="disable",
     )
     remediate.add_argument(
@@ -122,6 +125,21 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help="Optional YARA rule file.",
     )
+
+    case = sub.add_parser(
+        "case",
+        help="Create a complete incident-response case bundle from a device scan.",
+    )
+    case.add_argument("--serial", help="ADB device serial.")
+    case.add_argument(
+        "--output",
+        type=Path,
+        required=True,
+        help="Case directory for report, evidence manifest, and supporting artifacts.",
+    )
+    case.add_argument("--hash-apks", action="store_true")
+    case.add_argument("--markdown", action="store_true")
+    case.add_argument("--html", action="store_true")
 
     yara = sub.add_parser("yara", help="Scan a file/APK with an explicit YARA rule file.")
     yara.add_argument("path", type=Path)
@@ -207,6 +225,17 @@ def cmd_scan(
     return 0
 
 
+def cmd_case(client: AdbClient, serial: str | None, output: Path, hash_apks: bool, markdown: bool, html: bool) -> int:
+    output.mkdir(parents=True, exist_ok=True)
+    report = scan_device(client, serial, hash_apks=hash_apks)
+    md = markdown_report(report) if markdown else None
+    html_text = html_report(report) if html else None
+    manifest = build_case_bundle(output, report, md, html_text)
+    console.print(f"[green]Case bundle created:[/green] {output}")
+    console.print(f"[green]Artifacts:[/green] {len(manifest['artifacts'])}")
+    return 0
+
+
 def cmd_remediate(
     client: AdbClient,
     serial: str | None,
@@ -245,13 +274,16 @@ def cmd_remediate(
     pre_scan_path = save_evidence(pre_scan, evidence_dir / "pre-remediation")
     console.print(f"[green]Pre-remediation scan:[/green] {pre_scan_path}")
 
-    result = (
-        disable_package(client, resolved, package, confirmed=True)
-        if action == "disable"
-        else uninstall_package(client, resolved, package, confirmed=True)
-    )
+    if action == "restore":
+        result = enable_package(client, resolved, package, confirmed=True)
+    elif action == "disable":
+        result = disable_package(client, resolved, package, confirmed=True)
+    else:
+        result = uninstall_package(client, resolved, package, confirmed=True)
     verified = (
-        verify_disabled(client, resolved, package)
+        verify_enabled(client, resolved, package)
+        if action == "restore"
+        else verify_disabled(client, resolved, package)
         if action == "disable"
         else verify_absent(client, resolved, package)
     )
@@ -379,6 +411,15 @@ def main() -> int:
                 args.markdown,
                 args.html,
                 args.hash_apks,
+            )
+        if args.command == "case":
+            return cmd_case(
+                client,
+                args.serial,
+                args.output,
+                args.hash_apks,
+                args.markdown,
+                args.html,
             )
         if args.command == "remediate":
             return cmd_remediate(
