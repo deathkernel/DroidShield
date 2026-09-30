@@ -14,6 +14,7 @@ from .case import build_case_bundle
 from .apk import (
     ApkToolError,
     acquire_package_apks,
+    compare_apks,
     inspect_apk,
 )
 from .classifier import classify_package
@@ -106,6 +107,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Optional YARA rule file for the pulled APKs.",
     )
     package_apk.add_argument("--output", type=Path, help="Write the JSON acquisition/analysis report.")
+
+    apk_diff = sub.add_parser(
+        "apk-diff",
+        help="Compare two APK artifacts without executing either one.",
+    )
+    apk_diff.add_argument("before", type=Path)
+    apk_diff.add_argument("after", type=Path)
+    apk_diff.add_argument("--output", type=Path)
 
     apk = sub.add_parser("apk", help="Inspect an APK without executing it.")
     apk.add_argument("path", type=Path)
@@ -449,6 +458,12 @@ def main() -> int:
                 args.rules,
                 args.output,
             )
+        if args.command == "apk-diff":
+            write_json(
+                compare_apks(args.before, args.after),
+                args.output,
+            )
+            return 0
         if args.command == "apk":
             write_json(
                 inspect_apk(
