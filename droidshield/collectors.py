@@ -1,7 +1,19 @@
 from __future__ import annotations
 
 import re
+
 from .adb import AdbClient
+
+
+PACKAGE_RE = re.compile(r"^[A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)+$")
+SYSTEM_PATH_PREFIXES = (
+    "/system/",
+    "/system_ext/",
+    "/product/",
+    "/vendor/",
+    "/odm/",
+    "/apex/",
+)
 
 
 def _lines(output: str) -> list[str]:
@@ -23,7 +35,10 @@ def collect_security_state(client: AdbClient, serial: str) -> dict:
         client.shell("settings get secure enabled_accessibility_services", serial=serial)
     )
     admins = _lines(
-        client.shell("dumpsys device_policy | grep -E 'admin=|ComponentInfo' || true", serial=serial)
+        client.shell(
+            "dumpsys device_policy | grep -E 'admin=|ComponentInfo' || true",
+            serial=serial,
+        )
     )
     overlays = _lines(
         client.shell("cmd appops query-op SYSTEM_ALERT_WINDOW allow", serial=serial)
@@ -32,7 +47,8 @@ def collect_security_state(client: AdbClient, serial: str) -> dict:
         client.shell("settings get secure enabled_notification_listeners", serial=serial)
     )
     launcher = client.shell(
-        "cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME || true",
+        "cmd package resolve-activity --brief -a android.intent.action.MAIN "
+        "-c android.intent.category.HOME || true",
         serial=serial,
     ).strip()
 
@@ -46,14 +62,64 @@ def collect_security_state(client: AdbClient, serial: str) -> dict:
     }
 
 
-def collect_package_metadata(client: AdbClient, serial: str, package: str) -> dict:
-    dump = client.shell(f"dumpsys package {package}", serial=serial)
-    permissions = sorted(
-        set(re.findall(r"android\.permission\.[A-Z0-9_]+", dump))
+def _first_match(pattern: str, text: str, flags: int = 0) -> str | None:
+    match = re.search(pattern, text, flags)
+    return match.group(1).strip() if match else None
+
+
+def _all_paths_system(paths: list[str]) -> bool:
+    return bool(paths) and all(
+        any(path.startswith(prefix) for prefix in SYSTEM_PATH_PREFIXES)
+        for path in paths
     )
+
+
+def collect_package_metadata(client: AdbClient, serial: str, package: str) -> dict:
+    if not PACKAGE_RE.fullmatch(package):
+        raise ValueError(f"Invalid Android package name: {package!r}")
+
+    dump = client.package_dump(serial, package)
+    paths = client.package_paths(serial, package)
+
+    permission_block = dump
+    permissions = sorted(
+        set(re.findall(r"android\.permission\.[A-Z0-9_]+", permission_block))
+    )
+
+    flags_raw = _first_match(r"ApplicationInfo\{[^}]*\sflags=([^ ]+)", dump)
+    version_name = _first_match(r"versionName=([^\s]+)", dump)
+    version_code = _first_match(r"versionCode=(\d+)", dump)
+    first_install = _first_match(r"firstInstallTime=([^\n]+)", dump)
+    last_update = _first_match(r"lastUpdateTime=([^\n]+)", dump)
+    installer = _first_match(r"installerPackageName=([^\s]+)", dump)
+    uid = _first_match(r"userId=(\d+)", dump)
+    enabled_raw = _first_match(r"enabled=(true|false)", dump)
+
+    try:
+        hashes = client.package_sha256(serial, package)
+    except Exception:
+        hashes = {}
+
+    system_path_evidence = _all_paths_system(paths)
+    system_flag_evidence = bool(
+        flags_raw and "SYSTEM" in flags_raw.upper()
+    )
+
     return {
         "package": package,
         "permissions": permissions,
+        "apk_paths": paths,
+        "apk_sha256": hashes,
+        "version_name": version_name,
+        "version_code": int(version_code) if version_code else None,
+        "first_install_time": first_install,
+        "last_update_time": last_update,
+        "installer_package": installer,
+        "uid": int(uid) if uid else None,
+        "enabled": enabled_raw != "false",
+        "flags": flags_raw,
+        "system_path_evidence": system_path_evidence,
+        "system_flag_evidence": system_flag_evidence,
         "raw_size": len(dump),
     }
 
