@@ -33,7 +33,7 @@ def correlate(report: dict) -> dict:
             high_capability_packages.add(package)
             if package in third_party:
                 signals.append(f"high-risk-capabilities:{package}")
-                score += 15
+                score += 20
         elif assessment.get("level") == "MEDIUM" and package in third_party:
             signals.append(f"sensitive-capabilities:{package}")
             score += 4
@@ -43,7 +43,7 @@ def correlate(report: dict) -> dict:
             assessment = assessments.get(package)
             if package in high_capability_packages and package in third_party:
                 signals.append(f"correlated-active-{capability}:{package}")
-                score += 12
+                score += 30
             elif assessment and assessment.get("level") == "MEDIUM":
                 signals.append(f"active-sensitive-{capability}:{package}")
                 score += 4
@@ -57,9 +57,9 @@ def correlate(report: dict) -> dict:
     score = min(score, 100)
     level = "HIGH" if score >= 60 else "MEDIUM" if score >= 30 else "LOW"
     confidence = (
-        "higher" if any(s.startswith("correlated-active-") for s in signals)
-        else "moderate" if signals
-        else "low"
+        "higher"
+        if any(s.startswith("correlated-active-") for s in signals)
+        else "moderate" if signals else "low"
     )
     return {
         "score": score,
