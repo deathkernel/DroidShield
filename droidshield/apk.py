@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -48,7 +49,31 @@ def _run_tool(command: list[str], timeout: int = 120) -> dict:
         }
 
 
-def _analyze_text_tree(root: Path, max_files: int = 500, max_total_bytes: int = 32 * 1024 * 1024) -> dict:
+def _extract_cert_digests(output: str) -> dict[str, list[str]]:
+    sha256 = sorted(set(re.findall(
+        r"(?i)(?:Signer #\d+ certificate SHA-256 digest|SHA-256 digest):\s*([0-9A-F:]{32,})",
+        output,
+    )))
+    sha1 = sorted(set(re.findall(
+        r"(?i)(?:Signer #\d+ certificate SHA-1 digest|SHA-1 digest):\s*([0-9A-F:]{16,})",
+        output,
+    )))
+    md5 = sorted(set(re.findall(
+        r"(?i)(?:Signer #\d+ certificate MD5 digest|MD5 digest):\s*([0-9A-F:]{16,})",
+        output,
+    )))
+    return {
+        "sha256": sha256,
+        "sha1": sha1,
+        "md5": md5,
+    }
+
+
+def _analyze_text_tree(
+    root: Path,
+    max_files: int = 500,
+    max_total_bytes: int = 32 * 1024 * 1024,
+) -> dict:
     scanned = 0
     total_bytes = 0
     urls = set()
@@ -102,7 +127,7 @@ def inspect_apk(
         "size": path.stat().st_size,
         "tools": {
             name: tool_available(name)
-            for name in ("aapt2", "apktool", "jadx", "yara")
+            for name in ("aapt2", "apksigner", "apktool", "jadx", "yara")
         },
     }
 
@@ -111,6 +136,16 @@ def inspect_apk(
             ["aapt2", "dump", "badging", str(path)],
             timeout=60,
         )
+
+    if result["tools"]["apksigner"]:
+        signer = _run_tool(
+            ["apksigner", "verify", "--verbose", "--print-certs", str(path)],
+            timeout=60,
+        )
+        result["signing"] = {
+            **signer,
+            "certificate_digests": _extract_cert_digests(signer["output"]),
+        }
 
     if yara_rules is not None:
         result["yara"] = scan_with_yara(path, yara_rules)
