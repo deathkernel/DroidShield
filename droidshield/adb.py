@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import re
 import subprocess
 from dataclasses import dataclass
+
+
+PACKAGE_RE = re.compile(r"^[A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)+$")
 
 
 class AdbError(RuntimeError):
@@ -80,5 +84,50 @@ class AdbClient:
             if line.startswith("package:"):
                 path_and_pkg = line[len("package:"):]
                 if "=" in path_and_pkg:
-                    result.append(path_and_pkg.rsplit("=", 1)[1].strip())
+                    package = path_and_pkg.rsplit("=", 1)[1].strip()
+                    if PACKAGE_RE.fullmatch(package):
+                        result.append(package)
         return sorted(set(result))
+
+    def third_party_packages(self, serial: str) -> list[str]:
+        output = self.shell("pm list packages -3", serial=serial)
+        result = []
+        for line in output.splitlines():
+            if line.startswith("package:"):
+                package = line[len("package:"):].strip()
+                if PACKAGE_RE.fullmatch(package):
+                    result.append(package)
+        return sorted(set(result))
+
+    def package_paths(self, serial: str, package: str) -> list[str]:
+        if not PACKAGE_RE.fullmatch(package):
+            raise AdbError(f"Invalid Android package name: {package!r}")
+        output = self.shell(f"pm path {package}", serial=serial)
+        paths = []
+        for line in output.splitlines():
+            line = line.strip()
+            if line.startswith("package:"):
+                path = line[len("package:"):].strip()
+                if path:
+                    paths.append(path)
+        return sorted(set(paths))
+
+    def package_sha256(self, serial: str, package: str) -> dict[str, str]:
+        hashes = {}
+        for apk_path in self.package_paths(serial, package):
+            try:
+                output = self.shell(
+                    f"sha256sum '{apk_path}'",
+                    serial=serial,
+                ).strip()
+            except AdbError:
+                continue
+            parts = output.split()
+            if parts and re.fullmatch(r"[0-9a-fA-F]{64}", parts[0]):
+                hashes[apk_path] = parts[0].lower()
+        return hashes
+
+    def package_dump(self, serial: str, package: str) -> str:
+        if not PACKAGE_RE.fullmatch(package):
+            raise AdbError(f"Invalid Android package name: {package!r}")
+        return self.shell(f"dumpsys package {package}", serial=serial)
