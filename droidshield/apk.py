@@ -10,6 +10,7 @@ from .adb import AdbClient
 from .apk_analyzer import analyze_manifest_text, analyze_strings
 from .apk_indicators import analyze_source_text
 from .yara import scan_with_yara
+from .provenance import certificate_identity, compare_certificate_identity
 
 
 class ApkToolError(RuntimeError):
@@ -73,10 +74,13 @@ def _signer_identity(path: Path) -> dict:
         ["apksigner", "verify", "--verbose", "--print-certs", str(path)],
         timeout=60,
     )
+    raw = _extract_cert_digests(result["output"])
+    identity = certificate_identity({"available": True, "returncode": result["returncode"], "certificates": raw})
     return {
         "available": True,
         "returncode": result["returncode"],
-        "certificates": _extract_cert_digests(result["output"]),
+        "certificates": raw,
+        "identity": identity,
         "error": result["error"],
     }
 
@@ -198,8 +202,7 @@ def compare_apks(before: Path, after: Path) -> dict:
     before_signer = _signer_identity(before)
     after_signer = _signer_identity(after)
 
-    before_certs = before_signer.get("certificates", {}).get("sha256", [])
-    after_certs = after_signer.get("certificates", {}).get("sha256", [])
+    signer_comparison = compare_certificate_identity(before_signer, after_signer)
 
     return {
         "before": {
@@ -216,10 +219,10 @@ def compare_apks(before: Path, after: Path) -> dict:
         },
         "changed": before_hash != after_hash,
         "signer_changed": (
-            before_certs != after_certs
-            if before_certs and after_certs
-            else None
+            None if signer_comparison["comparable"] is False
+            else not signer_comparison["same_signer"]
         ),
+        "signer_comparison": signer_comparison,
         "size_delta": after.stat().st_size - before.stat().st_size,
     }
 
