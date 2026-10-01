@@ -36,6 +36,7 @@ from .scanner import scan_device
 from .tooling import capabilities
 from .yara import scan_with_yara
 from .windows import windows_environment_report, list_adb_devices
+from .mobile_api import serve_mobile
 
 console = Console()
 
@@ -51,6 +52,11 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("capabilities", help="Show available local analysis tools.")
     sub.add_parser("windows", help="Show Windows host and Android tooling status.")
     sub.add_parser("gui", help="Launch the Windows desktop interface.")
+
+    mobile = sub.add_parser("mobile-server", help="Expose the scanner to the DroidShield Android companion.")
+    mobile.add_argument("--host", default="0.0.0.0")
+    mobile.add_argument("--port", type=int, default=8765)
+    mobile.add_argument("--token", required=True, help="Bearer token required by Android clients.")
 
     scan = sub.add_parser("scan", help="Run a deep read-only security inventory.")
     scan.add_argument("--serial", help="ADB device serial.")
@@ -450,6 +456,9 @@ def main() -> int:
         if args.command == "gui":
             from .windows_gui import launch
             launch()
+            return 0
+        if args.command == "mobile-server":
+            serve_mobile(args.host, args.port, args.token)
             return 0
         if args.command == "scan":
             return cmd_scan(
