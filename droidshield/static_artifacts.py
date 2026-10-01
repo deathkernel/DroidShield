@@ -44,12 +44,17 @@ def inspect_apk_archive(path: Path, max_entries: int = 20000) -> dict[str, Any]:
         "certificate_entries": [],
         "suspicious_archive_paths": [],
         "errors": [],
+        "max_entries": max_entries,
+        "truncated": False,
     }
     try:
         with zipfile.ZipFile(path) as archive:
             result["opened"] = True
-            infos = archive.infolist()[:max_entries]
+            all_infos = archive.infolist()
+            result["truncated"] = len(all_infos) > max_entries
+            infos = all_infos[:max_entries]
             result["entry_count"] = len(infos)
+            result["archive_entry_count"] = len(all_infos)
             for info in infos:
                 name = info.filename.replace("\\\\", "/")
                 lower = name.lower()
