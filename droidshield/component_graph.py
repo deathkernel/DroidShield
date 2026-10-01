@@ -49,6 +49,10 @@ def build_component_graph(package_metadata: list[dict[str, Any]], security: dict
                 name = component.get("name") if isinstance(component, dict) else component
                 if name:
                     edges.append({"from": package, "to": name, "type": key[:-1]})
+        node["component_details"] = {
+            key: (details.get(key) if isinstance(details.get(key), list) else [])
+            for key in COMPONENT_KEYS
+        }
     for role, packages in active.items():
         role_name = "default-launcher" if role == "launcher" else role
         for package in packages:
@@ -61,5 +65,6 @@ def build_component_graph(package_metadata: list[dict[str, Any]], security: dict
     exported = []
     for node in nodes.values():
         for key in COMPONENT_KEYS:
-            exported.extend({"package": node["package"], "component": item["name"], "type": key[:-1]} for item in node["components"][key] if isinstance(item, dict) and item.get("exported") is True)
+            details = node.get("component_details", {}).get(key, [])
+            exported.extend({"package": node["package"], "component": item["name"], "type": key[:-1]} for item in details if isinstance(item, dict) and item.get("exported") is True)
     return {"nodes": sorted(nodes.values(), key=lambda item: item["package"]), "edges": edges, "exported_components": exported, "node_count": len(nodes), "edge_count": len(edges)}
