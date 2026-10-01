@@ -611,6 +611,10 @@ class DroidShieldWindowsApp:
         processes = [item for item in runtime.get("attributed_processes", []) if item.get("package") == name]
         network = self.report.get("network", {}).get("intelligence", {}) or {}
         sockets = [item for item in network.get("socket_attribution", []) if item.get("package") == name]
+        security_events = [
+            item for item in self.report.get("runtime", {}).get("security_events", {}).get("events", [])
+            if item.get("package") == name or name in item.get("packages_in_line", [])
+        ]
         related_findings = [item for item in self.report.get("findings", []) if item.get("package") == name]
         explain = next((item for item in self.report.get("explainability", {}).get("package_explanations", []) if item.get("package") == name), None)
         payload = {
@@ -630,6 +634,7 @@ class DroidShieldWindowsApp:
             "components": node.get("components", package.get("component_details", {})),
             "runtime": {"process_count": len(processes), "processes": processes},
             "network": {"socket_count": len(sockets), "sockets": sockets},
+            "security_events": {"event_count": len(security_events), "events": security_events},
             "related_findings": related_findings,
             "explainability": explain,
         }
