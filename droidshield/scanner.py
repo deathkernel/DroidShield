@@ -9,6 +9,8 @@ from .collectors import collect_package_metadata, collect_runtime, collect_secur
 from .component_graph import build_component_graph
 from .detection import correlate
 from .diff import compare_reports
+from .explain import explain_report
+from .posture import assess_posture
 from .hardening import recommendations
 from .network import collect_network_state
 from .permission_intel import analyze_permissions
@@ -86,7 +88,7 @@ def scan_device(client: AdbClient, serial: str | None = None, hash_apks: bool = 
         "granted_permissions_observed": sum(len(item.get("granted_permissions", [])) for item in package_metadata),
     }
     report = {
-        "schema_version": "0.8",
+        "schema_version": "0.9",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "device": {"serial": resolved, "manufacturer": props.get("ro.product.manufacturer"), "model": props.get("ro.product.model"), "android": props.get("ro.build.version.release"), "sdk": props.get("ro.build.version.sdk"), "security_patch": props.get("ro.build.version.security_patch")},
         "packages": packages,
@@ -105,5 +107,7 @@ def scan_device(client: AdbClient, serial: str | None = None, hash_apks: bool = 
     }
     report["risk"] = correlate(report)
     report["hardening"] = recommendations(report)
+    report["posture"] = assess_posture(report)
+    report["explainability"] = explain_report(report)
     report["incident_timeline"] = build_incident_timeline(report)
     return report
