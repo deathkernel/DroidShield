@@ -57,10 +57,18 @@ Missing tools are reported as unavailable; DroidShield does not fabricate result
 
 ## Installation
 
-    python3 -m pip install -e ".[test]"
+DroidShield is installed as a normal command-line security tool and exposes the `droidshield` command.
 
-Check the environment:
+- **Kali/Linux:** `pipx install git+https://github.com/deathkernel/DroidShield.git`
+- **Windows:** `py -m pip install "git+https://github.com/deathkernel/DroidShield.git"`
+- **From a checkout:** `pipx install .` on Kali/Linux or `py -m pip install .` on Windows
 
+Full installation and packaging instructions: [docs/INSTALL.md](docs/INSTALL.md).
+
+Verify the installation:
+
+    droidshield --version
+    droidshield --help
     droidshield capabilities
 
 ## Device scan
