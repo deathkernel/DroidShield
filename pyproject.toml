@@ -5,13 +5,14 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "droidshield"
 version = "0.2.0"
-description = "Defensive Android malware triage, incident response, and remediation toolkit for Kali Linux."
+description = "Defensive Android malware triage, incident response, and remediation toolkit for Kali Linux and Windows."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = ["rich>=13.7"]
 
 [project.optional-dependencies]
 test = ["pytest>=8.0"]
+windows = ["pyinstaller>=6.0"]
 
 [project.scripts]
 droidshield = "droidshield.cli:main"
