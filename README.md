@@ -1,6 +1,6 @@
 # DroidShield
 
-DroidShield is a defensive Android security and incident-response toolkit designed to run on Kali Linux.
+DroidShield is a defensive Android security and incident-response toolkit designed for Kali Linux and Windows hosts.
 
 ## Mission
 
@@ -40,7 +40,7 @@ DroidShield is not an attacker-hunting framework. Its primary focus is malware i
 - Regression tests for collection, analysis, correlation, remediation, acquisition, and case integrity
 - Local Kali tool capability detection
 
-## Kali toolchain
+## Windows edition\n\nDroidShield also supports a Windows-native host workflow. See [docs/WINDOWS.md](docs/WINDOWS.md). After installing Android Platform-Tools and connecting an authorized device, run:\n\n    droidshield windows\n\nThe Windows layer uses safe, non-shell subprocess execution and reuses the existing ADB, APK, YARA, evidence, reporting, and guarded-remediation engines. MTP/file-transfer mode is separate from ADB debugging.\n\n## Kali toolchain
 
 DroidShield can integrate with tools installed on the host, including:
 
@@ -167,3 +167,4 @@ Compare two preserved APK artifacts to identify hash changes, size deltas, and s
     droidshield apk-diff before.apk after.apk --output apk-diff.json
 
 A changed APK hash is expected after an application update. A signer change is a separate provenance signal that should be reviewed in context.
+\n\n## Cross-platform safety\n\nWindows support does not change the defensive scope: scanning and analysis are read-only by default, APKs are not executed, and package remediation requires explicit confirmation. Use DroidShield only on devices you own or are authorized to assess.\n
