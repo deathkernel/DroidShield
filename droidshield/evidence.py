@@ -46,10 +46,10 @@ def verify_manifest(root: Path, manifest: dict) -> dict:
     )
     sidecar_valid = True
     sidecar = root / "evidence-manifest.sha256"
-    if sidecar.is_file() and expected_manifest_hash:
+    if sidecar.is_file():
         try:
             recorded = sidecar.read_text(encoding="utf-8").strip().split()[0]
-            sidecar_valid = recorded == expected_manifest_hash
+            sidecar_valid = recorded == sha256_file(root / "evidence-manifest.json")
         except (OSError, IndexError):
             sidecar_valid = False
     valid = not (missing or added or changed) and manifest_hash_valid and sidecar_valid
