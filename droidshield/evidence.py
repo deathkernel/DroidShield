@@ -38,7 +38,29 @@ def verify_manifest(root: Path, manifest: dict) -> dict:
     missing = sorted(set(expected) - set(actual))
     added = sorted(set(actual) - set(expected))
     changed = sorted(path for path in set(expected) & set(actual) if expected[path] != actual[path])
-    return {"valid": not (missing or added or changed), "missing": missing, "added": added, "changed": changed}
+    expected_manifest_hash = manifest.get("manifest_sha256")
+    actual_manifest_hash = current.get("manifest_sha256")
+    manifest_hash_valid = (
+        expected_manifest_hash is None
+        or expected_manifest_hash == actual_manifest_hash
+    )
+    sidecar_valid = True
+    sidecar = root / "evidence-manifest.sha256"
+    if sidecar.is_file() and expected_manifest_hash:
+        try:
+            recorded = sidecar.read_text(encoding="utf-8").strip().split()[0]
+            sidecar_valid = recorded == expected_manifest_hash
+        except (OSError, IndexError):
+            sidecar_valid = False
+    valid = not (missing or added or changed) and manifest_hash_valid and sidecar_valid
+    return {
+        "valid": valid,
+        "missing": missing,
+        "added": added,
+        "changed": changed,
+        "manifest_hash_valid": manifest_hash_valid,
+        "sidecar_valid": sidecar_valid,
+    }
 
 
 def write_manifest(root: Path, output: Path | None = None) -> dict:
