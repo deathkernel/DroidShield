@@ -96,9 +96,11 @@ def collect_package_metadata(client: AdbClient, serial: str, package: str, hash_
     paths = client.package_paths(serial, package)
     permissions = sorted(set(re.findall(r"android\.permission\.[A-Z0-9_]+", dump)))
     granted_permissions = _permission_state(dump, permissions)
-    services = _component_names(r"(?:ServiceInfo|service)\{[^}]*\s([A-Za-z0-9_.$/]+)", dump)
-    receivers = _component_names(r"(?:ReceiverList|receiver)\{[^}]*\s([A-Za-z0-9_.$/]+)", dump)
-    providers = _component_names(r"(?:ProviderInfo|provider)\{[^}]*\s([A-Za-z0-9_.$/]+)", dump)
+    components = extract_components(package, dump)
+    activities = [item["name"] for item in components["activities"]]
+    services = [item["name"] for item in components["services"]]
+    receivers = [item["name"] for item in components["receivers"]]
+    providers = [item["name"] for item in components["providers"]]
     version_name = _first_match(r"versionName=([^\s}]+)", dump)
     version_code = _first_match(r"versionCode=(\d+)", dump)
     first_install = _first_match(r"firstInstallTime=([^\n}]+)", dump)
