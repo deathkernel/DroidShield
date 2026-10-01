@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-import shutil
-
+from .tool_adapters import tool_inventory
 
 TOOLS = {
     "adb": "adb",
@@ -15,4 +14,9 @@ TOOLS = {
 
 
 def capabilities() -> dict[str, bool]:
+    import shutil
     return {name: shutil.which(binary) is not None for name, binary in TOOLS.items()}
+
+
+def inventory() -> list[dict]:
+    return tool_inventory()
