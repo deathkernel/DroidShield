@@ -93,3 +93,14 @@ def test_case_bundle_verification_detects_tampering(tmp_path: Path):
     invalid = verify_case_bundle(tmp_path)
     assert invalid["valid"] is False
     assert "report.json" in invalid["changed"]
+
+
+def test_evidence_manifest_sidecar_tamper_is_detected(tmp_path: Path):
+    (tmp_path / "artifact.bin").write_bytes(b"evidence")
+    from droidshield.evidence import write_manifest
+    manifest = write_manifest(tmp_path)
+    sidecar = tmp_path / "evidence-manifest.sha256"
+    sidecar.write_text("0" * 64 + "  evidence-manifest.json\n", encoding="utf-8")
+    result = verify_manifest(tmp_path, manifest)
+    assert result["valid"] is False
+    assert result["sidecar_valid"] is False
