@@ -306,10 +306,10 @@ Dynamic analysis must remain isolated from the host and must never turn DroidShi
 - [ ] Vendor-specific fixture coverage
 - [ ] Regression corpus for APK analysis
 - [ ] Regression corpus for YARA
-- [x] Windows GUI regression tests
+- [ ] Windows GUI regression tests
 - [x] Remediation safety tests
 - [x] Evidence-integrity tests
-- [x] Performance tests for large package inventories
+- [ ] Performance tests for large package inventories
 - [ ] Failure/partial-collection test coverage
 ## APK before/after comparison
 
