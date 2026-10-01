@@ -31,3 +31,17 @@ def test_sha256_file(tmp_path):
 def test_windows_module_imports_off_windows():
     from droidshield import windows
     assert windows.is_windows() is (sys.platform == "win32")
+
+
+def test_list_adb_devices_parses_tab_separated_output(monkeypatch):
+    from types import SimpleNamespace
+    from droidshield import windows
+
+    monkeypatch.setattr(windows, "adb_path", lambda: "adb.exe")
+    monkeypatch.setattr(
+        windows,
+        "run_command",
+        lambda command: SimpleNamespace(returncode=0, stdout="List of devices attached\n12f565ccdead\tdevice\n", stderr=""),
+    )
+
+    assert windows.list_adb_devices() == [("12f565ccdead", "device")]
