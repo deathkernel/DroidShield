@@ -13,7 +13,7 @@ def test_apk_diff_detects_changed_artifact(tmp_path, monkeypatch):
         "droidshield.apk._signer_identity",
         lambda path: {
             "available": True,
-            "certificates": {"sha256": ["AA:BB"]},
+            "certificates": {"sha256": ["AA:BB:" + "00:" * 30]},
         },
     )
 
