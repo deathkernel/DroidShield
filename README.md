@@ -25,6 +25,7 @@ DroidShield is not an attacker-hunting framework. Its primary focus is malware i
 - Socket/connectivity collection where exposed by the device
 - Telephony/call-forwarding audit framework with explicit verification status
 - APK SHA-256 hashing and AAPT2 metadata inspection
+- Safe APK archive inspection for DEX, native ELF libraries, assets, resources, and archive-path indicators
 - APK signing certificate analysis with apksigner when installed
 - Offline deep APK analysis with apktool and JADX when installed
 - Optional YARA scanning with user-supplied rules
@@ -274,10 +275,10 @@ The following roadmap captures the planned expansion of DroidShield across detec
 
 ### Phase I — Advanced APK & Dynamic Analysis
 
-- [ ] Deeper DEX inspection
-- [ ] Native ELF and shared-library inspection
-- [ ] Manifest/component anomaly detection
-- [ ] Embedded resource and payload inspection
+- [x] Deeper DEX inspection
+- [x] Native ELF and shared-library inspection
+- [x] Manifest/component anomaly detection
+- [x] Embedded resource and payload inspection
 - [ ] More advanced YARA integration
 - [ ] Isolated APK dynamic-analysis workflow
 - [ ] Process/file/network behavior observation in an isolated environment
@@ -292,7 +293,7 @@ Dynamic analysis must remain isolated from the host and must never turn DroidShi
 - [ ] Safer disable workflow
 - [ ] Controlled uninstall workflow
 - [ ] Restore workflow
-- [ ] Permission-change tracking around remediation
+- [x] Permission-change tracking around remediation
 - [x] Post-remediation verification
 - [x] Automated before/after evidence package
 - [ ] Recovery guidance for supported device states
@@ -305,10 +306,10 @@ Dynamic analysis must remain isolated from the host and must never turn DroidShi
 - [ ] Vendor-specific fixture coverage
 - [ ] Regression corpus for APK analysis
 - [ ] Regression corpus for YARA
-- [ ] Windows GUI regression tests
+- [x] Windows GUI regression tests
 - [x] Remediation safety tests
 - [x] Evidence-integrity tests
-- [ ] Performance tests for large package inventories
+- [x] Performance tests for large package inventories
 - [ ] Failure/partial-collection test coverage
 ## APK before/after comparison
 
