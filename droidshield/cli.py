@@ -10,7 +10,7 @@ from rich.console import Console
 from rich.table import Table
 
 from .adb import AdbError, AdbClient
-from .case import build_case_bundle
+from .case import build_case_bundle, verify_case_bundle
 from .apk import (
     ApkToolError,
     acquire_package_apks,
@@ -160,6 +160,9 @@ def build_parser() -> argparse.ArgumentParser:
     case.add_argument("--markdown", action="store_true")
     case.add_argument("--html", action="store_true")
     case.add_argument("--note", action="append", default=[], help="Add an analyst note to the case bundle.")
+
+    case_verify = sub.add_parser("case-verify", help="Verify forensic case evidence integrity.")
+    case_verify.add_argument("path", type=Path, help="Case directory containing evidence-manifest.json.")
 
     yara = sub.add_parser("yara", help="Scan a file/APK with an explicit YARA rule file.")
     yara.add_argument("path", type=Path)
@@ -491,6 +494,10 @@ def main() -> int:
                 args.html,
                 args.note,
             )
+        if args.command == "case-verify":
+            result = verify_case_bundle(args.path)
+            console.print_json(json.dumps(result))
+            return 0 if result.get("valid") else 3
         if args.command == "remediate":
             return cmd_remediate(
                 client,
