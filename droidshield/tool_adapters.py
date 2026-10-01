@@ -1,16 +1,31 @@
 from __future__ import annotations
+
 from dataclasses import dataclass
-import shutil
+
+from .tool_paths import resolve_tool
+
 
 @dataclass(frozen=True)
 class ToolAdapter:
     name: str
     binary: str
     purpose: str
+
+    def path(self) -> str | None:
+        return resolve_tool(self.binary)
+
     def available(self) -> bool:
-        return shutil.which(self.binary) is not None
+        return self.path() is not None
+
     def describe(self) -> dict:
-        return {"name": self.name, "binary": self.binary, "available": self.available(), "purpose": self.purpose}
+        return {
+            "name": self.name,
+            "binary": self.binary,
+            "path": self.path(),
+            "available": self.available(),
+            "purpose": self.purpose,
+        }
+
 
 ADAPTERS = (
     ToolAdapter("ADB", "adb", "Android device transport and evidence collection"),
@@ -21,8 +36,10 @@ ADAPTERS = (
     ToolAdapter("YARA", "yara", "Rule-based malware indicator scanning"),
 )
 
+
 def tool_inventory() -> list[dict]:
     return [adapter.describe() for adapter in ADAPTERS]
+
 
 def available_tools() -> list[str]:
     return [adapter.name for adapter in ADAPTERS if adapter.available()]
