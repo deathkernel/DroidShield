@@ -168,3 +168,84 @@ Compare two preserved APK artifacts to identify hash changes, size deltas, and s
 
 A changed APK hash is expected after an application update. A signer change is a separate provenance signal that should be reviewed in context.
 \n\n## Cross-platform safety\n\nWindows support does not change the defensive scope: scanning and analysis are read-only by default, APKs are not executed, and package remediation requires explicit confirmation. Use DroidShield only on devices you own or are authorized to assess.\n
+
+## Deep scan and safe malware removal
+
+DroidShield is designed to investigate Android devices using a read-only deep scan first. A high heuristic risk score or a sensitive permission is **not by itself proof of malware**. Review the finding evidence, package provenance, APK evidence, and device state before remediation.
+
+### 1. Check the connected device
+
+On Windows:
+
+    .venv\Scripts\activate.bat
+    droidshield devices
+
+Confirm that the intended device is shown as `device` before scanning.
+
+### 2. Run a deep scan
+
+Run a normal deep security inventory:
+
+    droidshield scan --serial YOUR_DEVICE_SERIAL --output deep-scan.json --markdown deep-scan.md
+
+For additional third-party APK SHA-256 evidence:
+
+    droidshield scan --serial YOUR_DEVICE_SERIAL --hash-apks --output deep-scan.json --markdown deep-scan.md
+
+Example:
+
+    droidshield scan --serial 12f565ccdead --hash-apks --output deep-scan.json --markdown deep-scan.md
+
+The scan collects package metadata, permissions, granted permissions, sensitive component state, runtime observations, network observations, timelines, and heuristic risk signals. APK hashing does not execute APKs.
+
+### 3. Investigate a suspicious package
+
+First acquire the installed APK artifacts for offline analysis:
+
+    droidshield package-apk --serial YOUR_DEVICE_SERIAL --package PACKAGE_NAME --evidence-dir evidence/apk-case
+
+If the local analysis tools are installed, run deeper static analysis:
+
+    droidshield package-apk --serial YOUR_DEVICE_SERIAL --package PACKAGE_NAME --evidence-dir evidence/apk-case --deep --output apk-investigation.json
+
+Optional YARA rules can also be supplied:
+
+    droidshield package-apk --serial YOUR_DEVICE_SERIAL --package PACKAGE_NAME --evidence-dir evidence/apk-case --deep --rules rules/android_triage.yar --output apk-investigation.json
+
+DroidShield does not execute the acquired APK. Missing static-analysis tools are reported as unavailable rather than treated as clean evidence.
+
+### 4. Safely remove or disable a confirmed malicious user package
+
+**Do not start with uninstall.** First run the remediation command without `--confirm`:
+
+    droidshield remediate --serial YOUR_DEVICE_SERIAL --package PACKAGE_NAME --action disable --evidence-dir evidence/remediation
+
+This is a dry run. It captures package evidence and shows the DroidShield assessment without changing the device.
+
+If the evidence supports disabling the package, explicitly confirm:
+
+    droidshield remediate --serial YOUR_DEVICE_SERIAL --package PACKAGE_NAME --action disable --evidence-dir evidence/remediation --confirm
+
+DroidShield then records a pre-remediation scan, performs the guarded action, verifies the package state, runs a post-remediation scan, and records a before/after result when possible.
+
+### 5. Uninstall a confirmed malicious user package
+
+For a user-installed package that has been investigated and confirmed as malicious:
+
+    droidshield remediate --serial YOUR_DEVICE_SERIAL --package PACKAGE_NAME --action uninstall --evidence-dir evidence/remediation --confirm
+
+Protected/system packages are blocked by DroidShield's remediation safeguards.
+
+### 6. Restore a package disabled by DroidShield
+
+If a package was disabled by the controlled workflow and needs to be restored:
+
+    droidshield remediate --serial YOUR_DEVICE_SERIAL --package PACKAGE_NAME --action restore --evidence-dir evidence/remediation --confirm
+
+### Important safety notes
+
+- A heuristic `HIGH` score is not a confirmed malware verdict.
+- Sensitive permissions such as SMS, camera, microphone, overlay, or accessibility can be legitimate.
+- Preserve evidence before changing a suspicious device.
+- Do not uninstall a package solely because it appears in a heuristic finding.
+- Only assess and remediate devices you own or are authorized to assess.
