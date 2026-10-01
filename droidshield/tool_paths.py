@@ -19,18 +19,7 @@ def _version_key(name: str) -> tuple[int, ...]:
     return tuple(int(part) for part in parts) if parts else (0,)
 
 
-def _android_sdk_roots() -> list[Path]:
-    roots: list[Path] = []
-    for variable in ("ANDROID_SDK_ROOT", "ANDROID_HOME"):
-        value = os.environ.get(variable)
-        if value:
-            roots.append(Path(value).expanduser())
-
-    if os.name == "nt":
-        local_appdata = os.environ.get("LOCALAPPDATA")
-        if local_appdata:
-            roots.append(Path(local_appdata) / "Android" / "Sdk")
-
+def _unique_paths(roots: list[Path]) -> list[Path]:
     seen: set[Path] = set()
     unique: list[Path] = []
     for root in roots:
@@ -41,23 +30,31 @@ def _android_sdk_roots() -> list[Path]:
     return unique
 
 
-def resolve_tool(name: str) -> str | None:
-    """Resolve a defensive analysis tool from PATH or the local Android SDK.
+def _explicit_android_sdk_roots() -> list[Path]:
+    roots: list[Path] = []
+    for variable in ("ANDROID_SDK_ROOT", "ANDROID_HOME"):
+        value = os.environ.get(variable)
+        if value:
+            roots.append(Path(value).expanduser())
+    return _unique_paths(roots)
 
-    Android SDK build-tools ship AAPT2 and apksigner, but they are often not
-    added to PATH on Windows. This resolver keeps normal PATH behavior first
-    and then searches installed SDK build-tools directories, newest-first.
-    """
-    direct = shutil.which(name)
-    if direct:
-        return direct
 
+def _default_android_sdk_roots() -> list[Path]:
+    roots: list[Path] = []
+    if os.name == "nt":
+        local_appdata = os.environ.get("LOCALAPPDATA")
+        if local_appdata:
+            roots.append(Path(local_appdata) / "Android" / "Sdk")
+    return _unique_paths(roots)
+
+
+def _sdk_tool_path(name: str, sdk_roots: list[Path]) -> str | None:
     filename = _WINDOWS_TOOL_FILENAMES.get(name)
     if not filename:
         return None
 
     candidates: list[tuple[tuple[int, ...], Path]] = []
-    for sdk_root in _android_sdk_roots():
+    for sdk_root in sdk_roots:
         build_tools = sdk_root / "build-tools"
         if not build_tools.is_dir():
             continue
@@ -73,6 +70,25 @@ def resolve_tool(name: str) -> str | None:
 
     candidates.sort(key=lambda item: item[0], reverse=True)
     return str(candidates[0][1])
+
+
+def resolve_tool(name: str) -> str | None:
+    """Resolve a defensive analysis tool with explicit SDK precedence.
+
+    When ANDROID_SDK_ROOT or ANDROID_HOME is set, that SDK is authoritative.
+    This matters on Windows where Android SDK Build Tools are commonly not on
+    PATH. If no explicit SDK tool is found, DroidShield falls back to PATH and
+    finally to the conventional per-user Android SDK location.
+    """
+    explicit = _sdk_tool_path(name, _explicit_android_sdk_roots())
+    if explicit:
+        return explicit
+
+    direct = shutil.which(name)
+    if direct:
+        return direct
+
+    return _sdk_tool_path(name, _default_android_sdk_roots())
 
 
 def tool_available(name: str) -> bool:
