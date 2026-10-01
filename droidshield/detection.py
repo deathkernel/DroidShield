@@ -48,6 +48,17 @@ def correlate(report: dict) -> dict:
                 signals.append(f"active-sensitive-{capability}:{package}")
                 score += 4
 
+    socket_attribution = report.get("network", {}).get("intelligence", {}).get("socket_attribution", [])
+    for socket in socket_attribution:
+        package = socket.get("package")
+        assessment = assessments.get(package)
+        if package in third_party and assessment and assessment.get("level") == "HIGH":
+            signals.append(f"high-risk-network-process:{package}")
+            score += 20
+        elif package in third_party and assessment and assessment.get("level") == "MEDIUM":
+            signals.append(f"network-active-sensitive:{package}")
+            score += 3
+
     launcher_packages = set(component_map.get("launcher", []))
     for package in launcher_packages:
         if package in third_party:
