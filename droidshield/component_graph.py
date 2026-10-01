@@ -41,12 +41,14 @@ def build_component_graph(package_metadata: list[dict[str, Any]], security: dict
         if not package:
             continue
         node = nodes.setdefault(package, {"package": package, "components": {key: [] for key in COMPONENT_KEYS}, "permissions": item.get("permissions", []), "active_roles": []})
+        details = item.get("component_details", {}) or {}
         for key in COMPONENT_KEYS:
-            values = item.get(key, [])
+            values = details.get(key) if isinstance(details.get(key), list) else item.get(key, [])
             node["components"][key] = values
             for component in values:
                 name = component.get("name") if isinstance(component, dict) else component
-                edges.append({"from": package, "to": name, "type": key[:-1]})
+                if name:
+                    edges.append({"from": package, "to": name, "type": key[:-1]})
     for role, packages in active.items():
         role_name = "default-launcher" if role == "launcher" else role
         for package in packages:
