@@ -2,14 +2,17 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+
+from .tool_paths import resolve_tool
 from pathlib import Path
 
 
 def scan_with_yara(path: Path, rules: Path | None = None) -> dict:
-    if shutil.which("yara") is None:
+    executable = resolve_tool("yara") or shutil.which("yara")
+    if executable is None:
         return {"available": False, "matches": [], "error": "yara not installed"}
 
-    command = ["yara", "-r"]
+    command = [executable, "-r"]
     if rules:
         command.append(str(rules))
     else:
@@ -20,7 +23,7 @@ def scan_with_yara(path: Path, rules: Path | None = None) -> dict:
         }
 
     command.append(str(path))
-    proc = subprocess.run(command, text=True, capture_output=True, check=False)
+    proc = subprocess.run(command, text=True, encoding="utf-8", errors="replace", capture_output=True, check=False)
     return {
         "available": True,
         "returncode": proc.returncode,
