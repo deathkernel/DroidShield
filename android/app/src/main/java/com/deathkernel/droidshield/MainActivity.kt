@@ -9,7 +9,8 @@ import android.widget.ProgressBar
 import android.widget.TextView
 
 class MainActivity : Activity() {
-    private val handler = Handler(Looper.getMainLooper())
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val transport: ScanTransport = DemoScanTransport()
     private var running = false
     private lateinit var status: TextView
     private lateinit var progress: ProgressBar
@@ -18,16 +19,6 @@ class MainActivity : Activity() {
     private lateinit var appsStat: TextView
     private lateinit var findingsStat: TextView
     private lateinit var result: TextView
-
-    private val checks = listOf(
-        "Collecting device security state",
-        "Reviewing app permissions",
-        "Checking accessibility services",
-        "Checking overlay access",
-        "Checking notification listeners",
-        "Correlating sensitive capabilities",
-        "Building security findings"
-    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -50,38 +41,46 @@ class MainActivity : Activity() {
         progress.visibility = ProgressBar.VISIBLE
         progress.progress = 0
         status.text = "SCANNING DEVICE"
-        status.setTextColor(0xFF59D6A5.toInt())
-        result.text = "Collecting read-only security evidence..."
+        currentCheck.text = "Starting read-only scan"
+        result.text = "Collecting evidence..."
         appsStat.text = "APPS\nScanning"
         findingsStat.text = "FINDINGS\n0"
-        runStep(0)
+        transport.startScan(
+            onProgress = { percent, check -> mainHandler.post { progress.progress = percent; currentCheck.text = check } },
+            onComplete = { scanResult -> mainHandler.post { showResult(scanResult) } },
+            onError = { error -> mainHandler.post { showError(error) } }
+        )
     }
 
-    private fun runStep(index: Int) {
-        if (!running) return
-        if (index >= checks.size) {
-            finishScan()
-            return
-        }
-        progress.progress = ((index.toFloat() / checks.size) * 100).toInt()
-        currentCheck.text = checks[index]
-        handler.postDelayed({ runStep(index + 1) }, 550)
-    }
-
-    private fun finishScan() {
+    private fun showResult(scan: ScanResult) {
         running = false
         progress.progress = 100
-        status.text = "SCAN COMPLETE"
+        status.text = "SCAN COMPLETE • ${scan.riskLevel}"
         currentCheck.text = "Evidence collection complete"
-        appsStat.text = "APPS\nReady"
-        findingsStat.text = "FINDINGS\nReview"
-        result.text = "Scan engine connection is not configured yet. This screen is ready for the DroidShield scanner transport layer."
+        appsStat.text = "APPS\n${scan.appsAnalyzed}"
+        findingsStat.text = "FINDINGS\n${scan.findings.size}"
+        result.text = if (scan.findings.isEmpty()) {
+            "No findings were returned by the connected scan transport. This does not by itself prove the device is clean."
+        } else {
+            scan.findings.joinToString("\n\n") { finding ->
+                "${finding.severity} • ${finding.title}\n${finding.packageName ?: "Device-level"}\n${finding.description}"
+            }
+        }
+        scanButton.isEnabled = true
+        scanButton.text = "START DEEP SCAN"
+    }
+
+    private fun showError(error: String) {
+        running = false
+        status.text = "SCAN FAILED"
+        currentCheck.text = error
+        result.text = "The scan did not complete. No security verdict was generated."
         scanButton.isEnabled = true
         scanButton.text = "START DEEP SCAN"
     }
 
     override fun onDestroy() {
-        handler.removeCallbacksAndMessages(null)
+        mainHandler.removeCallbacksAndMessages(null)
         super.onDestroy()
     }
 }
