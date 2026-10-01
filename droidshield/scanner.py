@@ -13,7 +13,7 @@ from .explain import explain_report
 from .posture import assess_posture
 from .hardening import recommendations
 from .network import collect_network_state
-from .runtime_intel import summarize_runtime, correlate_network
+from .runtime_intel import summarize_runtime, correlate_network, correlate_security_events
 from .permission_intel import analyze_permissions
 from .telephony import audit_call_forwarding
 from .timeline import build_incident_timeline, build_install_timeline
@@ -81,6 +81,7 @@ def scan_device(client: AdbClient, serial: str | None = None, hash_apks: bool = 
     runtime = collect_runtime(client, resolved)
     runtime_summary = summarize_runtime(runtime, packages)
     runtime["intelligence"] = runtime_summary
+    runtime["security_events"] = correlate_security_events(runtime.get("logcat_security", []), packages)
     network = collect_network_state(client, resolved, runtime.get("processes", []))
     network["intelligence"] = correlate_network(network, runtime_summary)
     timeline = build_install_timeline(package_metadata)
