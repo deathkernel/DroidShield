@@ -47,7 +47,9 @@ def scan_device(client: AdbClient, serial: str | None = None, hash_apks: bool = 
     try: third_party = client.third_party_packages(resolved)
     except Exception: third_party = []
     third_party_set = set(third_party)
-    target_packages = (sorted(third_party_set) + [p for p in packages if p not in third_party_set][:100])[:500]
+    analysis_limit = 500
+    target_packages = (sorted(third_party_set) + [p for p in packages if p not in third_party_set][:max(0, analysis_limit - len(third_party_set))])[:analysis_limit]
+    unanalyzed_packages = sorted(set(packages) - set(target_packages)
     findings = package_findings(packages)
     security = collect_security_state(client, resolved)
     package_metadata = [_collect_one(client, resolved, package, hash_apks and package in third_party_set) for package in target_packages]
@@ -98,7 +100,7 @@ def scan_device(client: AdbClient, serial: str | None = None, hash_apks: bool = 
         "device": {"serial": resolved, "manufacturer": props.get("ro.product.manufacturer"), "model": props.get("ro.product.model"), "android": props.get("ro.build.version.release"), "sdk": props.get("ro.build.version.sdk"), "security_patch": props.get("ro.build.version.security_patch")},
         "packages": packages,
         "third_party_packages": third_party,
-        "metadata_coverage": {"packages_total": len(packages), "third_party_total": len(third_party), "packages_analyzed": len(package_metadata), "packages_with_collection_errors": sum(1 for item in package_metadata if item.get("collection_error")), "hash_apks": hash_apks, "permission_intelligence": "enabled"},
+        "metadata_coverage": {"packages_total": len(packages), "third_party_total": len(third_party), "packages_analyzed": len(package_metadata), "packages_with_collection_errors": sum(1 for item in package_metadata if item.get("collection_error")), "packages_unanalyzed": len(unanalyzed_packages), "unanalyzed_packages": unanalyzed_packages, "analysis_limit": analysis_limit, "analysis_complete": not unanalyzed_packages, "hash_apks": hash_apks, "permission_intelligence": "enabled"},
         "package_metadata": package_metadata,
         "package_assessments": package_assessments,
         "permission_summary": permission_summary,
