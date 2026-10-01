@@ -373,9 +373,6 @@ def cmd_remediate(
     record_path.write_text(json.dumps(record, indent=2), encoding="utf-8")
     write_manifest(evidence_dir)
 
-    manifest = write_manifest(evidence_dir)
-    record["evidence_manifest"] = str(evidence_dir / "evidence-manifest.json")
-    record_path.write_text(json.dumps(record, indent=2), encoding="utf-8")
     if result.success and verified and post_scan_error is None:
         console.print(f"[green]Remediation completed and verified: {action}[/green]")
         console.print(f"[green]Record: {record_path}[/green]")
