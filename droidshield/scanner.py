@@ -49,7 +49,7 @@ def scan_device(client: AdbClient, serial: str | None = None, hash_apks: bool = 
     third_party_set = set(third_party)
     analysis_limit = 500
     target_packages = (sorted(third_party_set) + [p for p in packages if p not in third_party_set][:max(0, analysis_limit - len(third_party_set))])[:analysis_limit]
-    unanalyzed_packages = sorted(set(packages) - set(target_packages)
+    unanalyzed_packages = sorted(set(packages) - set(target_packages))
     findings = package_findings(packages)
     security = collect_security_state(client, resolved)
     package_metadata = [_collect_one(client, resolved, package, hash_apks and package in third_party_set) for package in target_packages]
