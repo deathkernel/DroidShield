@@ -7,7 +7,7 @@ from typing import Any
 
 
 def _dex_version(data: bytes) -> str | None:
-    if len(data) < 8 or data[:4] != b"dex\\n":
+    if len(data) < 8 or data[:4] != b"dex\n":
         return None
     raw = data[4:7]
     try:
@@ -17,7 +17,7 @@ def _dex_version(data: bytes) -> str | None:
 
 
 def _elf_identity(data: bytes) -> dict[str, Any]:
-    if len(data) < 20 or data[:4] != b"\\x7fELF":
+    if len(data) < 20 or data[:4] != b"\x7fELF":
         return {"is_elf": False}
     elf_class = {1: "ELF32", 2: "ELF64"}.get(data[4], f"ELF-class-{data[4]}")
     endian = "little" if data[5] == 1 else "big" if data[5] == 2 else "unknown"
