@@ -35,6 +35,7 @@ from .report import html_report, markdown_report
 from .scanner import scan_device
 from .tooling import capabilities
 from .yara import scan_with_yara
+from .windows import windows_environment_report, list_adb_devices
 
 console = Console()
 
@@ -48,6 +49,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("devices", help="List connected Android devices.")
     sub.add_parser("capabilities", help="Show available local analysis tools.")
+    sub.add_parser("windows", help="Show Windows host and Android tooling status.")
 
     scan = sub.add_parser("scan", help="Run a deep read-only security inventory.")
     scan.add_argument("--serial", help="ADB device serial.")
@@ -156,6 +158,28 @@ def build_parser() -> argparse.ArgumentParser:
     yara.add_argument("--output", type=Path)
 
     return parser
+
+
+def cmd_windows() -> int:
+    report = windows_environment_report()
+    table = Table(title="DroidShield - Windows Environment")
+    table.add_column("Component")
+    table.add_column("Status / Value")
+    table.add_row("Platform", report["platform"])
+    table.add_row("Python", report["python"])
+    table.add_row("Architecture", report["architecture"])
+    table.add_row("ADB", report["adb"] or "NOT FOUND")
+    for name, available in report["tools"].items():
+        table.add_row(name, "YES" if available else "NO")
+    console.print(table)
+    try:
+        devices = list_adb_devices()
+        console.print(f"[bold]ADB devices:[/bold] {len(devices)}")
+        for serial, state in devices:
+            console.print(f"  {serial}: {state}")
+    except RuntimeError as exc:
+        console.print(f"[yellow]ADB status:[/yellow] {exc}")
+    return 0
 
 
 def cmd_devices(client: AdbClient) -> int:
@@ -420,6 +444,8 @@ def main() -> int:
             return cmd_devices(client)
         if args.command == "capabilities":
             return cmd_capabilities()
+        if args.command == "windows":
+            return cmd_windows()
         if args.command == "scan":
             return cmd_scan(
                 client,
