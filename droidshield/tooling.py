@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from .tool_adapters import tool_inventory
+from .tool_paths import resolve_tool
 
 TOOLS = {
     "adb": "adb",
@@ -14,8 +15,7 @@ TOOLS = {
 
 
 def capabilities() -> dict[str, bool]:
-    import shutil
-    return {name: shutil.which(binary) is not None for name, binary in TOOLS.items()}
+    return {name: resolve_tool(binary) is not None for name, binary in TOOLS.items()}
 
 
 def inventory() -> list[dict]:
