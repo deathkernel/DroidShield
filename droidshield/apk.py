@@ -51,15 +51,15 @@ def _run_tool(command: list[str], timeout: int = 120) -> dict:
 
 def _extract_cert_digests(output: str) -> dict[str, list[str]]:
     sha256 = sorted(set(re.findall(
-        r"(?i)(?:Signer #\d+ certificate SHA-256 digest|SHA-256 digest):\s*([0-9A-F:]{32,})",
+        r"(?i)(?:Signer #\d+ certificate SHA-256 digest|SHA-256 digest):\s*((?:[0-9A-F]{2}:?)+)",
         output,
     )))
     sha1 = sorted(set(re.findall(
-        r"(?i)(?:Signer #\d+ certificate SHA-1 digest|SHA-1 digest):\s*([0-9A-F:]{16,})",
+        r"(?i)(?:Signer #\d+ certificate SHA-1 digest|SHA-1 digest):\s*((?:[0-9A-F]{2}:?)+)",
         output,
     )))
     md5 = sorted(set(re.findall(
-        r"(?i)(?:Signer #\d+ certificate MD5 digest|MD5 digest):\s*([0-9A-F:]{16,})",
+        r"(?i)(?:Signer #\d+ certificate MD5 digest|MD5 digest):\s*((?:[0-9A-F]{2}:?)+)",
         output,
     )))
     return {"sha256": sha256, "sha1": sha1, "md5": md5}
