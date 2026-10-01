@@ -46,7 +46,7 @@ def classify_package(package: str, metadata: dict | None = None) -> dict:
             signals.append(f"active-{role}")
             if capability in signals:
                 corroboration_score += weight
-                if permission_intel.get("special_granted") and capability.replace("-capable", "") in permission_intel.get("special_granted", []):
+                if permission_intel.get("special_granted"):
                     corroboration_score += 5
     if "notification" in active_roles: signals.append("notification-listener-active")
     if "device_policy" in active_roles: signals.append("device-admin-active")
