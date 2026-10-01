@@ -74,6 +74,8 @@ def scan_device(client: AdbClient, serial: str | None = None, hash_apks: bool = 
     for item in package_metadata:
         if item.get("collection_error"):
             findings.append({"severity": "LOW", "title": "Package metadata could not be collected", "description": "The package was discovered, but some forensic metadata could not be collected. Investigate the error before treating the package as clean.", "package": item["package"], "evidence": {"error": item["collection_error"]}})
+        if item.get("apk_hash_error"):
+            findings.append({"severity": "LOW", "title": "APK hash collection incomplete", "description": "APK hashing was requested but one or more hashes could not be collected. Do not treat missing hashes as evidence of absence.", "package": item["package"], "evidence": {"error": item["apk_hash_error"]}})
 
     for assessment in package_assessments:
         if assessment["level"] == "HIGH" and not assessment["protected_system"]:
@@ -100,7 +102,7 @@ def scan_device(client: AdbClient, serial: str | None = None, hash_apks: bool = 
         "device": {"serial": resolved, "manufacturer": props.get("ro.product.manufacturer"), "model": props.get("ro.product.model"), "android": props.get("ro.build.version.release"), "sdk": props.get("ro.build.version.sdk"), "security_patch": props.get("ro.build.version.security_patch")},
         "packages": packages,
         "third_party_packages": third_party,
-        "metadata_coverage": {"packages_total": len(packages), "third_party_total": len(third_party), "packages_analyzed": len(package_metadata), "packages_with_collection_errors": sum(1 for item in package_metadata if item.get("collection_error")), "packages_unanalyzed": len(unanalyzed_packages), "unanalyzed_packages": unanalyzed_packages, "analysis_limit": analysis_limit, "analysis_complete": not unanalyzed_packages, "hash_apks": hash_apks, "permission_intelligence": "enabled"},
+        "metadata_coverage": {"packages_total": len(packages), "third_party_total": len(third_party), "packages_analyzed": len(package_metadata), "packages_with_collection_errors": sum(1 for item in package_metadata if item.get("collection_error")), "packages_with_hash_errors": sum(1 for item in package_metadata if item.get("apk_hash_error")), "packages_unanalyzed": len(unanalyzed_packages), "unanalyzed_packages": unanalyzed_packages, "analysis_limit": analysis_limit, "analysis_complete": not unanalyzed_packages, "hash_apks": hash_apks, "permission_intelligence": "enabled"},
         "package_metadata": package_metadata,
         "package_assessments": package_assessments,
         "permission_summary": permission_summary,
