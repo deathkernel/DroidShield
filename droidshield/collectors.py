@@ -36,7 +36,7 @@ def collect_security_state(client: AdbClient, serial: str) -> dict:
     accessibility_out, error = _safe_shell(client, "settings get secure enabled_accessibility_services", serial)
     if error: errors["accessibility_services"] = error
     accessibility = _lines(accessibility_out)
-    admins_out, error = _safe_shell(client, "dumpsys device_policy | grep -E 'admin=|ComponentInfo' || true", serial)
+    admins_out, error = _safe_shell(client, "dumpsys device_policy | grep -E 'admin=|ComponentInfo'", serial)
     if error: errors["device_policy"] = error
     admins = _lines(admins_out)
     overlays_out, error = _safe_shell(client, "cmd appops query-op SYSTEM_ALERT_WINDOW allow", serial)
@@ -45,7 +45,7 @@ def collect_security_state(client: AdbClient, serial: str) -> dict:
     notification_out, error = _safe_shell(client, "settings get secure enabled_notification_listeners", serial)
     if error: errors["notification_listeners"] = error
     notification = _lines(notification_out)
-    launcher, error = _safe_shell(client, "cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME || true", serial)
+    launcher, error = _safe_shell(client, "cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME", serial)
     if error: errors["default_launcher"] = error
     return {
         "settings": settings,
@@ -110,9 +110,14 @@ def collect_package_metadata(client: AdbClient, serial: str, package: str, hash_
     enabled_raw = _first_match(r"enabled=(true|false)", dump)
     pkg_flags_match = re.search(r"pkgFlags=\[([^\]]+)\]", dump, flags=re.IGNORECASE)
     pkg_flags = pkg_flags_match.group(1).strip().split() if pkg_flags_match else []
-    try:
-        hashes = client.package_sha256(serial, package) if hash_apk else {}
-    except Exception:
+    hash_error = None
+    if hash_apk:
+        try:
+            hashes = client.package_sha256(serial, package)
+        except Exception as exc:
+            hashes = {}
+            hash_error = str(exc)
+    else:
         hashes = {}
     system_path_evidence = _all_paths_system(paths)
     system_flag_evidence = any(flag.upper() == "SYSTEM" for flag in pkg_flags)
@@ -127,6 +132,7 @@ def collect_package_metadata(client: AdbClient, serial: str, package: str, hash_
         "providers": providers,
         "apk_paths": paths,
         "apk_sha256": hashes,
+        "apk_hash_error": hash_error,
         "version_name": version_name,
         "version_code": int(version_code) if version_code else None,
         "first_install_time": first_install,
@@ -144,7 +150,7 @@ def collect_package_metadata(client: AdbClient, serial: str, package: str, hash_
 def collect_runtime(client: AdbClient, serial: str) -> dict:
     processes, process_error = _safe_shell(client, "ps -A", serial)
     services, services_error = _safe_shell(client, "dumpsys activity services", serial)
-    logcat, logcat_error = _safe_shell(client, "logcat -d -t 1200 2>/dev/null | grep -Ei 'PackageManager|ActivityManager|accessibility|device.?admin|overlay|permission|install|denied|security' | tail -n 500 || true", serial)
+    logcat, logcat_error = _safe_shell(client, "logcat -d -t 1200 2>/dev/null | grep -Ei 'PackageManager|ActivityManager|accessibility|device.?admin|overlay|permission|install|denied|security' | tail -n 500", serial)
     errors = {}
     if process_error: errors["processes"] = process_error
     if services_error: errors["services"] = services_error
