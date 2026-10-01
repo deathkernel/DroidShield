@@ -24,9 +24,14 @@ class AdbClient:
             command += ["-s", serial]
         command += list(args)
         try:
+            # ADB returns device-originated text. Android output is commonly UTF-8,
+            # while Windows consoles may default to cp1252. Decode explicitly so
+            # non-ASCII package/device metadata cannot crash a scan.
             proc = subprocess.run(
                 command,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 capture_output=True,
                 check=False,
             )
