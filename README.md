@@ -125,7 +125,7 @@ Before a confirmed destructive action, DroidShield records a package snapshot an
 
 Create a complete case directory from one scan:
 
-    droidshield case --output case-001 --hash-apks --markdown --html
+    droidshield case --output case-001 --hash-apks --markdown --html --note "Review installer provenance"
 
 The case bundle includes report.json, optional report.md, optional report.html, and evidence-manifest.json with SHA-256 hashes for case artifacts.
 
@@ -156,25 +156,25 @@ The following roadmap captures the planned expansion of DroidShield across detec
 ### Phase A — Advanced Detection Engine
 
 - [ ] Explainable multi-signal malware detection engine
-- [ ] APK signing-key and certificate verification
-- [ ] Certificate comparison across app updates
+- [x] APK signing-key and certificate verification
+- [x] Certificate comparison across app updates
 - [ ] APK hash/reputation integration points
-- [ ] Suspicious Android API and behavior indicators
-- [ ] Embedded URL, domain, and IP extraction
-- [ ] WebView abuse indicators
-- [ ] Dynamic code-loading indicators
-- [ ] Reflection-heavy code indicators
-- [ ] Native library analysis
+- [x] Suspicious Android API and behavior indicators
+- [x] Embedded URL, domain, and IP extraction
+- [x] WebView abuse indicators
+- [x] Dynamic code-loading indicators
+- [x] Reflection-heavy code indicators
+- [x] Native library analysis
 - [ ] Expanded DEX/static analysis
 - [ ] Permission + behavior correlation
-- [ ] Stronger component export and intent-filter graphing
+- [x] Stronger component export and intent-filter graphing
 - [ ] Expanded defensive YARA regression corpus
 
 ### Phase B — Explainable Risk & Findings
 
 - [ ] Separate overall heuristic risk from individual finding severity
 - [ ] Why-is-this-risky evidence breakdown
-- [ ] Per-signal score contribution and provenance
+- [x] Per-signal score contribution and provenance
 - [ ] Evidence-quality explanation
 - [ ] Confidence explanation
 - [ ] Clear confirmed-malware versus not-established distinction
@@ -184,7 +184,7 @@ The following roadmap captures the planned expansion of DroidShield across detec
 
 ### Phase C — Per-App Investigation Center
 
-- [ ] Dedicated package investigation workspace
+- [x] Dedicated package investigation workspace
 - [ ] Overview, permissions, and granted-permission analysis
 - [ ] Services, receivers, providers, and activities
 - [ ] Active roles and privileged components
@@ -195,7 +195,7 @@ The following roadmap captures the planned expansion of DroidShield across detec
 - [ ] Native libraries
 - [ ] URLs, domains, and IP indicators
 - [ ] YARA results
-- [ ] Package timeline
+- [x] Package timeline
 - [ ] Evidence file browser
 
 ### Phase D — Device Security Posture
@@ -225,10 +225,10 @@ The following roadmap captures the planned expansion of DroidShield across detec
 
 ### Phase F — Forensics & Case Management
 
-- [ ] Full forensic case workspace
-- [ ] Evidence collection manifest
-- [ ] Evidence SHA-256 integrity tracking
-- [ ] Scan history
+- [x] Full forensic case workspace
+- [x] Evidence collection manifest
+- [x] Evidence SHA-256 integrity tracking
+- [x] Scan history
 - [ ] Package timeline
 - [ ] Privilege/component timeline
 - [ ] Runtime event timeline
@@ -236,7 +236,7 @@ The following roadmap captures the planned expansion of DroidShield across detec
 - [ ] Before/after scan comparison
 - [ ] Before/after package and permission diff
 - [ ] Case notes and analyst annotations
-- [ ] Exportable case bundle
+- [x] Exportable case bundle
 - [ ] Professional forensic HTML report
 
 ### Phase G — Windows Security Console
@@ -245,7 +245,7 @@ The following roadmap captures the planned expansion of DroidShield across detec
 - [ ] Device selector and connection state
 - [ ] Deep-scan progress and status
 - [ ] Overview, Findings, Packages, Evidence, and History views
-- [ ] Investigation center integrated into the desktop UI
+- [x] Investigation center integrated into the desktop UI
 - [ ] Permission matrix UI
 - [ ] Timeline UI
 - [ ] Before/after comparison UI
@@ -258,9 +258,9 @@ The following roadmap captures the planned expansion of DroidShield across detec
 ### Phase H — Network & Runtime Intelligence
 
 - [ ] Richer network endpoint collection
-- [ ] UID-to-process attribution
-- [ ] Process-to-package attribution
-- [ ] Socket-to-package attribution
+- [x] UID-to-process attribution
+- [x] Process-to-package attribution
+- [x] Socket-to-package attribution
 - [ ] Runtime service attribution
 - [ ] Security-focused event correlation
 - [ ] Optional live device event monitoring
@@ -284,13 +284,13 @@ Dynamic analysis must remain isolated from the host and must never turn DroidShi
 
 ### Phase J — Remediation & Recovery
 
-- [ ] Evidence-first remediation wizard
+- [x] Evidence-first remediation wizard
 - [ ] Safer disable workflow
 - [ ] Controlled uninstall workflow
 - [ ] Restore workflow
 - [ ] Permission-change tracking around remediation
-- [ ] Post-remediation verification
-- [ ] Automated before/after evidence package
+- [x] Post-remediation verification
+- [x] Automated before/after evidence package
 - [ ] Recovery guidance for supported device states
 - [ ] Stronger protection against accidental system-package modification
 
@@ -302,8 +302,8 @@ Dynamic analysis must remain isolated from the host and must never turn DroidShi
 - [ ] Regression corpus for APK analysis
 - [ ] Regression corpus for YARA
 - [ ] Windows GUI regression tests
-- [ ] Remediation safety tests
-- [ ] Evidence-integrity tests
+- [x] Remediation safety tests
+- [x] Evidence-integrity tests
 - [ ] Performance tests for large package inventories
 - [ ] Failure/partial-collection test coverage
 ## APK before/after comparison
@@ -395,3 +395,13 @@ If a package was disabled by the controlled workflow and needs to be restored:
 - Preserve evidence before changing a suspicious device.
 - Do not uninstall a package solely because it appears in a heuristic finding.
 - Only assess and remediate devices you own or are authorized to assess.
+
+### Bulk implementation status
+
+The current `android-ui` branch includes the first integrated investigation stack: evidence integrity, explainability, security posture, permission intelligence, component metadata, runtime/network attribution, normalized APK signing provenance, forensic case metadata/analyst notes, and a Windows package investigation workspace. These features remain evidence-producing triage capabilities; heuristic risk is not a malware verdict.
+
+Forensic case notes can be attached from the CLI with repeated `--note` options:
+
+    droidshield case --output case-001 --note "Capture installer provenance" --note "Review active privileged roles"
+
+The case directory records `case.json`, `notes.jsonl`, `report.json`, optional human-readable reports, and the evidence manifest.
