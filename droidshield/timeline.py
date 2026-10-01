@@ -74,6 +74,16 @@ def build_incident_timeline(
                     "role": role,
                 })
 
+        for event in report.get("runtime", {}).get("security_events", {}).get("events", []):
+            events.append({
+                "timestamp": scan_time,
+                "type": "runtime_security_event",
+                "package": event.get("package"),
+                "event_type": event.get("event_type"),
+                "categories": event.get("categories", []),
+                "line": event.get("line"),
+            })
+
     for record in remediation_records or []:
         timestamp = record.get("timestamp")
         if timestamp:
