@@ -21,6 +21,7 @@ from .classifier import classify_package
 from .collectors import collect_package_metadata
 from .diff import compare_reports
 from .forensics import save_evidence
+from .evidence import write_manifest, verify_manifest
 from .remediation import (
     RemediationRefused,
     disable_package,
@@ -367,6 +368,9 @@ def cmd_remediate(
     record_path = evidence_dir / f"{package.replace('.', '_')}-remediation-{stamp}.json"
     record_path.write_text(json.dumps(record, indent=2), encoding="utf-8")
 
+    manifest = write_manifest(evidence_dir)
+    record["evidence_manifest"] = str(evidence_dir / "evidence-manifest.json")
+    record_path.write_text(json.dumps(record, indent=2), encoding="utf-8")
     if result.success and verified and post_scan_error is None:
         console.print(f"[green]Remediation completed and verified: {action}[/green]")
         console.print(f"[green]Record: {record_path}[/green]")
