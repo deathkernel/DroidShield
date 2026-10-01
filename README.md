@@ -127,6 +127,10 @@ Create a complete case directory from one scan:
 
     droidshield case --output case-001 --hash-apks --markdown --html --note "Review installer provenance"
 
+Verify that case evidence has not changed after collection or review:
+
+    droidshield case-verify case-001
+
 The case bundle includes report.json, optional report.md, optional report.html, and evidence-manifest.json with SHA-256 hashes for case artifacts.
 
 ## Safety model
@@ -235,7 +239,7 @@ The following roadmap captures the planned expansion of DroidShield across detec
 - [ ] Remediation timeline
 - [ ] Before/after scan comparison
 - [ ] Before/after package and permission diff
-- [ ] Case notes and analyst annotations
+- [x] Case notes and analyst annotations
 - [x] Exportable case bundle
 - [ ] Professional forensic HTML report
 
