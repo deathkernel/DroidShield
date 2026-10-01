@@ -1,0 +1,6 @@
+droidshield (0.2.0-1) unstable; urgency=medium
+
+  * Package DroidShield as an installable Debian/Kali command-line tool.
+  * Provide a native droidshield command through Python packaging.
+
+ -- DroidShield contributors <maintainers@droidshield.invalid>  Thu, 01 Oct 2026 19:30:00 +0530
