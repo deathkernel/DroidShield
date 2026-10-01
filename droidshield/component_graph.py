@@ -7,8 +7,20 @@ COMPONENT_KEYS = ("activities", "services", "receivers", "providers")
 
 
 def _component_records(package: str, dump: str, pattern: str, kind: str) -> list[dict[str, Any]]:
-    names = sorted(set(re.findall(pattern, dump, re.IGNORECASE)))
-    return [{"name": name, "package": package, "type": kind} for name in names]
+    records = []
+    for name in sorted(set(re.findall(pattern, dump, re.IGNORECASE))):
+        escaped = re.escape(name)
+        nearby = re.search(rf"(?s).{{0,300}}{escaped}.{{0,300}}", dump, re.IGNORECASE)
+        text = nearby.group(0) if nearby else ""
+        exported_match = re.search(r"\bexported=(true|false)\b", text, re.IGNORECASE)
+        records.append({
+            "name": name,
+            "package": package,
+            "type": kind,
+            "exported": (exported_match.group(1).lower() == "true") if exported_match else None,
+            "intent_filter_count": len(re.findall(r"<intent-filter\\b|intent-filter", text, re.IGNORECASE)),
+        })
+    return records
 
 
 def extract_components(package: str, dump: str) -> dict[str, list[dict[str, Any]]]:
