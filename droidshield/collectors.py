@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 
 from .adb import AdbClient
+from .component_graph import extract_components
 
 
 PACKAGE_RE = re.compile(r"^[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+$")
@@ -117,7 +118,9 @@ def collect_package_metadata(client: AdbClient, serial: str, package: str, hash_
         "package": package,
         "permissions": permissions,
         "granted_permissions": granted_permissions,
+        "activities": activities,
         "services": services,
+        "component_details": components,
         "receivers": receivers,
         "providers": providers,
         "apk_paths": paths,
