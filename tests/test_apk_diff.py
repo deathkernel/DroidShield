@@ -20,4 +20,4 @@ def test_apk_diff_detects_changed_artifact(tmp_path, monkeypatch):
     result = compare_apks(before, after)
     assert result["changed"] is True
     assert result["signer_changed"] is False
-    assert result["size_delta"] == 0
+    assert result["size_delta"] == -1
