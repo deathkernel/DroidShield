@@ -36,3 +36,28 @@ def test_posture_reports_active_security_controls():
     result = assess_posture(report)
     assert result["attention_count"] == 2
     assert result["coverage"]["packages_with_collection_errors"] == 0
+
+
+from droidshield.runtime_intel import summarize_runtime, correlate_network
+from droidshield.detection import correlate
+
+
+def test_runtime_process_and_socket_attribution():
+    processes = ["u0_a1 123 1 100 0 0 S com.example", "u0_a2 456 1 100 0 0 S com.other"]
+    runtime = {"processes": processes}
+    summary = summarize_runtime(runtime, ["com.example", "com.other"])
+    network = {"socket_processes": [{"pid": "123", "process": processes[0]}, {"pid": "999", "process": None}]}
+    correlated = correlate_network(network, summary)
+    assert correlated["attributed_socket_count"] == 1
+    assert correlated["socket_attribution"][0]["package"] == "com.example"
+
+
+def test_network_correlation_adds_signal_for_sensitive_package():
+    report = {
+        "package_assessments": [{"package": "com.example", "level": "MEDIUM"}],
+        "third_party_packages": ["com.example"],
+        "security": {},
+        "network": {"intelligence": {"socket_attribution": [{"pid": "123", "package": "com.example"}]}},
+    }
+    result = correlate(report)
+    assert "network-active-sensitive:com.example" in result["signals"]
