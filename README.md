@@ -40,7 +40,7 @@ DroidShield is not an attacker-hunting framework. Its primary focus is malware i
 - Regression tests for collection, analysis, correlation, remediation, acquisition, and case integrity
 - Local Kali tool capability detection
 
-## Windows edition\n\nDroidShield also supports a Windows-native host workflow. See [docs/WINDOWS.md](docs/WINDOWS.md). After installing Android Platform-Tools and connecting an authorized device, run:\n\n    droidshield windows\n\nThe Windows layer uses safe, non-shell subprocess execution and reuses the existing ADB, APK, YARA, evidence, reporting, and guarded-remediation engines. MTP/file-transfer mode is separate from ADB debugging.\n\n## Kali toolchain
+## Windows edition\n\nDroidShield also supports a Windows-native host workflow. See [docs/WINDOWS.md](docs/WINDOWS.md). After installing Android Platform-Tools and connecting an authorized device, run:\n\n    droidshield windows\n\nFor the desktop interface on Windows:\n\n    droidshield gui\n\nThe Windows layer uses safe, non-shell subprocess execution and reuses the existing ADB, APK, YARA, evidence, reporting, and guarded-remediation engines. MTP/file-transfer mode is separate from ADB debugging.\n\n## Kali toolchain
 
 DroidShield can integrate with tools installed on the host, including:
 
