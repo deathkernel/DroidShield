@@ -421,14 +421,20 @@ def cmd_package_apk(
     ]
     signing_consistent = len(set(signer_sets)) <= 1 if signer_sets else None
 
+    signing_identities = [
+        item.get("signing", {}).get("identity")
+        for item in analyses
+        if item.get("signing", {}).get("identity")
+    ]
     report = {
-        "schema_version": "1.1",
+        "schema_version": "1.2",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "serial": resolved,
         "package": package,
         "acquisition": acquisition,
         "analyses": analyses,
         "signing_consistency": signing_consistent,
+        "signing_identities": signing_identities,
         "private_app_data_pulled": False,
     }
     write_json(report, output)
