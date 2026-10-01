@@ -5,12 +5,12 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.widget.Button
+import android.widget.EditText
 import android.widget.ProgressBar
 import android.widget.TextView
 
 class MainActivity : Activity() {
     private val mainHandler = Handler(Looper.getMainLooper())
-    private val transport: ScanTransport = DemoScanTransport()
     private var running = false
     private lateinit var status: TextView
     private lateinit var progress: ProgressBar
@@ -19,6 +19,8 @@ class MainActivity : Activity() {
     private lateinit var appsStat: TextView
     private lateinit var findingsStat: TextView
     private lateinit var result: TextView
+    private lateinit var serverUrl: EditText
+    private lateinit var serverToken: EditText
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -30,24 +32,30 @@ class MainActivity : Activity() {
         appsStat = findViewById(R.id.appsStat)
         findingsStat = findViewById(R.id.findingsStat)
         result = findViewById(R.id.result)
+        serverUrl = findViewById(R.id.serverUrl)
+        serverToken = findViewById(R.id.serverToken)
         scanButton.setOnClickListener { startScan() }
     }
 
     private fun startScan() {
         if (running) return
+        val url = serverUrl.text.toString().trim()
+        val token = serverToken.text.toString()
+        if (url.isEmpty() || token.isEmpty()) {
+            status.text = "SCANNER CONNECTION REQUIRED"
+            currentCheck.text = "Enter the DroidShield host URL and bearer token."
+            return
+        }
         running = true
         scanButton.isEnabled = false
         scanButton.text = "SCANNING..."
         progress.visibility = ProgressBar.VISIBLE
-        progress.progress = 0
         status.text = "SCANNING DEVICE"
-        currentCheck.text = "Starting read-only scan"
-        result.text = "Collecting evidence..."
-        appsStat.text = "APPS\nScanning"
-        findingsStat.text = "FINDINGS\n0"
+        result.text = "Collecting read-only forensic evidence..."
+        val transport = HttpScanTransport(url, token)
         transport.startScan(
             onProgress = { percent, check -> mainHandler.post { progress.progress = percent; currentCheck.text = check } },
-            onComplete = { scanResult -> mainHandler.post { showResult(scanResult) } },
+            onComplete = { scan -> mainHandler.post { showResult(scan) } },
             onError = { error -> mainHandler.post { showError(error) } }
         )
     }
@@ -56,15 +64,13 @@ class MainActivity : Activity() {
         running = false
         progress.progress = 100
         status.text = "SCAN COMPLETE • ${scan.riskLevel}"
-        currentCheck.text = "Evidence collection complete"
+        currentCheck.text = "${scan.deviceName} • Android ${scan.androidVersion}"
         appsStat.text = "APPS\n${scan.appsAnalyzed}"
         findingsStat.text = "FINDINGS\n${scan.findings.size}"
         result.text = if (scan.findings.isEmpty()) {
-            "No findings were returned by the connected scan transport. This does not by itself prove the device is clean."
+            "No findings were returned. This is not a guarantee that the device is clean."
         } else {
-            scan.findings.joinToString("\n\n") { finding ->
-                "${finding.severity} • ${finding.title}\n${finding.packageName ?: "Device-level"}\n${finding.description}"
-            }
+            scan.findings.joinToString("\n\n") { f -> "${f.severity} • ${f.title}\n${f.packageName ?: "Device-level"}\n${f.description}" }
         }
         scanButton.isEnabled = true
         scanButton.text = "START DEEP SCAN"
@@ -74,13 +80,8 @@ class MainActivity : Activity() {
         running = false
         status.text = "SCAN FAILED"
         currentCheck.text = error
-        result.text = "The scan did not complete. No security verdict was generated."
+        result.text = "No security verdict was generated because the scanner did not complete."
         scanButton.isEnabled = true
         scanButton.text = "START DEEP SCAN"
-    }
-
-    override fun onDestroy() {
-        mainHandler.removeCallbacksAndMessages(null)
-        super.onDestroy()
     }
 }
