@@ -9,3 +9,11 @@ def test_extract_cert_digests():
     result = _extract_cert_digests(text)
     assert result["sha256"] == ["AA:BB:CC:DD"]
     assert result["sha1"] == ["11:22:33"]
+
+
+from droidshield.provenance import normalize_digest
+
+
+def test_normalize_sha256_digest():
+    raw = "AA:BB:" + "00:" * 30
+    assert normalize_digest(raw) == "aabb" + "00" * 30
