@@ -151,15 +151,161 @@ The included YARA rules are triage signatures, not malware verdicts.
 
 ## Roadmap
 
-1. Stronger component export/intent-filter graphing
-2. Signature/certificate comparison across app updates
-3. More vendor-specific telephony adapters
-4. Richer network endpoint and UID-to-process attribution
-5. Android emulator/device integration fixtures in CI
-6. Expanded defensive YARA regression corpus
-7. Evidence timelines combining package, privilege, runtime, and remediation events
+The following roadmap captures the planned expansion of DroidShield across detection, explainability, forensics, device hardening, Windows UX, and advanced analysis.
 
+### Phase A — Advanced Detection Engine
 
+- [ ] Explainable multi-signal malware detection engine
+- [ ] APK signing-key and certificate verification
+- [ ] Certificate comparison across app updates
+- [ ] APK hash/reputation integration points
+- [ ] Suspicious Android API and behavior indicators
+- [ ] Embedded URL, domain, and IP extraction
+- [ ] WebView abuse indicators
+- [ ] Dynamic code-loading indicators
+- [ ] Reflection-heavy code indicators
+- [ ] Native library analysis
+- [ ] Expanded DEX/static analysis
+- [ ] Permission + behavior correlation
+- [ ] Stronger component export and intent-filter graphing
+- [ ] Expanded defensive YARA regression corpus
+
+### Phase B — Explainable Risk & Findings
+
+- [ ] Separate overall heuristic risk from individual finding severity
+- [ ] Why-is-this-risky evidence breakdown
+- [ ] Per-signal score contribution and provenance
+- [ ] Evidence-quality explanation
+- [ ] Confidence explanation
+- [ ] Clear confirmed-malware versus not-established distinction
+- [ ] Finding correlation graph
+- [ ] Risk changes between scans
+- [ ] Package-level investigation states without treating heuristics as proof
+
+### Phase C — Per-App Investigation Center
+
+- [ ] Dedicated package investigation workspace
+- [ ] Overview, permissions, and granted-permission analysis
+- [ ] Services, receivers, providers, and activities
+- [ ] Active roles and privileged components
+- [ ] APK artifacts and split inventory
+- [ ] APK SHA-256 hashes
+- [ ] Signing certificates
+- [ ] DEX indicators
+- [ ] Native libraries
+- [ ] URLs, domains, and IP indicators
+- [ ] YARA results
+- [ ] Package timeline
+- [ ] Evidence file browser
+
+### Phase D — Device Security Posture
+
+- [ ] Device security posture dashboard
+- [ ] USB/ADB debugging state
+- [ ] Unknown-source/install configuration indicators
+- [ ] Accessibility service inventory
+- [ ] Device-admin inventory
+- [ ] Overlay inventory
+- [ ] Notification-listener inventory
+- [ ] VPN inventory
+- [ ] Default launcher analysis
+- [ ] Security-patch and build posture
+- [ ] Hardening recommendations with evidence
+- [ ] Vendor-specific security checks
+
+### Phase E — Permission Intelligence
+
+- [ ] Full permission matrix across installed applications
+- [ ] Filters for SMS, camera, microphone, overlay, accessibility, notification, install, and other sensitive capabilities
+- [ ] Granted-vs-declared permission comparison
+- [ ] Permission change tracking between scans
+- [ ] Suspicious permission-combination explanations
+- [ ] App role + permission correlation
+- [ ] Permission review workflow
+
+### Phase F — Forensics & Case Management
+
+- [ ] Full forensic case workspace
+- [ ] Evidence collection manifest
+- [ ] Evidence SHA-256 integrity tracking
+- [ ] Scan history
+- [ ] Package timeline
+- [ ] Privilege/component timeline
+- [ ] Runtime event timeline
+- [ ] Remediation timeline
+- [ ] Before/after scan comparison
+- [ ] Before/after package and permission diff
+- [ ] Case notes and analyst annotations
+- [ ] Exportable case bundle
+- [ ] Professional forensic HTML report
+
+### Phase G — Windows Security Console
+
+- [ ] Polished Windows desktop dashboard
+- [ ] Device selector and connection state
+- [ ] Deep-scan progress and status
+- [ ] Overview, Findings, Packages, Evidence, and History views
+- [ ] Investigation center integrated into the desktop UI
+- [ ] Permission matrix UI
+- [ ] Timeline UI
+- [ ] Before/after comparison UI
+- [ ] Structured security-posture cards
+- [ ] Why-is-this-risky UI
+- [ ] One-click evidence/report export
+- [ ] Improved accessibility and keyboard navigation
+- [ ] Packaged Windows executable workflow
+
+### Phase H — Network & Runtime Intelligence
+
+- [ ] Richer network endpoint collection
+- [ ] UID-to-process attribution
+- [ ] Process-to-package attribution
+- [ ] Socket-to-package attribution
+- [ ] Runtime service attribution
+- [ ] Security-focused event correlation
+- [ ] Optional live device event monitoring
+- [ ] Package install/update event detection
+- [ ] Permission-state change detection
+- [ ] Privileged-service state change detection
+
+### Phase I — Advanced APK & Dynamic Analysis
+
+- [ ] Deeper DEX inspection
+- [ ] Native ELF and shared-library inspection
+- [ ] Manifest/component anomaly detection
+- [ ] Embedded resource and payload inspection
+- [ ] More advanced YARA integration
+- [ ] Isolated APK dynamic-analysis workflow
+- [ ] Process/file/network behavior observation in an isolated environment
+- [ ] Dynamic-analysis evidence capture
+- [ ] Static-vs-dynamic evidence correlation
+
+Dynamic analysis must remain isolated from the host and must never turn DroidShield into an offensive execution framework.
+
+### Phase J — Remediation & Recovery
+
+- [ ] Evidence-first remediation wizard
+- [ ] Safer disable workflow
+- [ ] Controlled uninstall workflow
+- [ ] Restore workflow
+- [ ] Permission-change tracking around remediation
+- [ ] Post-remediation verification
+- [ ] Automated before/after evidence package
+- [ ] Recovery guidance for supported device states
+- [ ] Stronger protection against accidental system-package modification
+
+### Phase K — Testing, CI & Reliability
+
+- [ ] Expanded Android device fixtures
+- [ ] Emulator/device integration tests in CI
+- [ ] Vendor-specific fixture coverage
+- [ ] Regression corpus for APK analysis
+- [ ] Regression corpus for YARA
+- [ ] Windows GUI regression tests
+- [ ] Remediation safety tests
+- [ ] Evidence-integrity tests
+- [ ] Performance tests for large package inventories
+- [ ] Failure/partial-collection test coverage
 ## APK before/after comparison
 
 Compare two preserved APK artifacts to identify hash changes, size deltas, and signer-certificate changes when apksigner is available:
