@@ -8,6 +8,8 @@ import subprocess
 from pathlib import Path
 from typing import Sequence
 
+from .tool_paths import resolve_tool
+
 WINDOWS_TOOLS = ("adb.exe", "fastboot.exe", "aapt2.exe", "apksigner.bat", "apktool.bat", "jadx.bat", "yara.exe")
 
 
@@ -16,7 +18,7 @@ def is_windows() -> bool:
 
 
 def find_executable(name: str) -> str | None:
-    return shutil.which(name)
+    return resolve_tool(name.removesuffix(".exe").removesuffix(".bat")) or shutil.which(name)
 
 
 def capabilities() -> dict[str, bool]:
@@ -34,13 +36,15 @@ def run_command(
         cwd=cwd,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         timeout=timeout,
         check=False,
     )
 
 
 def adb_path() -> str | None:
-    return find_executable("adb.exe") or find_executable("adb")
+    return resolve_tool("adb") or find_executable("adb.exe") or find_executable("adb")
 
 
 def list_adb_devices() -> list[tuple[str, str]]:
