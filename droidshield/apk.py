@@ -36,14 +36,16 @@ def _run_tool(command: list[str], timeout: int = 120) -> dict:
         proc = subprocess.run(
             command,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             capture_output=True,
             check=False,
             timeout=timeout,
         )
         return {
             "returncode": proc.returncode,
-            "output": proc.stdout[:20000],
-            "error": proc.stderr[:4000],
+            "output": (proc.stdout or "")[:20000],
+            "error": (proc.stderr or "")[:4000],
         }
     except subprocess.TimeoutExpired as exc:
         return {
