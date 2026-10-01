@@ -24,4 +24,4 @@ def test_install_timeline_is_sorted_and_contains_installer():
     result = build_install_timeline(items)
     assert result[0]["package"] == "com.example.old"
     assert result[0]["type"] == "package_install"
-    assert result[-1]["type"] == "package_update"
+    assert result[1]["package"] == "com.example.old"\n    assert result[1]["type"] == "package_update"
