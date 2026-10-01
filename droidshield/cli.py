@@ -21,7 +21,7 @@ from .classifier import classify_package
 from .collectors import collect_package_metadata
 from .diff import compare_reports
 from .forensics import save_evidence
-from .evidence import write_manifest, verify_manifest
+from .evidence import write_manifest
 from .remediation import (
     RemediationRefused,
     disable_package,
@@ -420,11 +420,9 @@ def cmd_package_apk(
         analyses.append(analysis)
 
     signer_sets = [
-        tuple(
-            tuple(item.get("signing", {}).get("identity", {}).get("sha256", []))
-        )
+        tuple(item.get("signing", {}).get("identity", {}).get("sha256", []))
         for item in analyses
-        if item.get("signing")
+        if item.get("signing", {}).get("identity")
     ]
     signing_consistent = len(set(signer_sets)) <= 1 if signer_sets else None
 
