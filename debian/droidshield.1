@@ -1,0 +1,50 @@
+.TH DROIDSHIELD 1 "October 2026" "DroidShield 0.2.0" "DroidShield Manual"
+.SH NAME
+droidshield \- defensive Android malware triage and incident-response toolkit
+.SH SYNOPSIS
+.B droidshield
+.I command
+.RI [ options ]
+.SH DESCRIPTION
+DroidShield collects evidence from authorized Android devices over ADB,
+performs package and APK triage, produces forensic reports, and provides
+guarded remediation workflows. Analysis is defensive and read-only by default.
+.SH COMMANDS
+.TP
+.B devices
+List connected Android devices.
+.TP
+.B capabilities
+Show locally available analysis tools.
+.TP
+.B scan
+Run a read-only device security scan.
+.TP
+.B apk
+Inspect an APK without executing it.
+.TP
+.B package-apk
+Acquire and analyze an installed package APK.
+.TP
+.B yara
+Run an explicit YARA ruleset against a file.
+.TP
+.B case
+Create a forensic incident-response case bundle.
+.TP
+.B case-verify
+Verify a case evidence manifest.
+.TP
+.B remediate
+Perform guarded package disable, restore, or uninstall operations.
+.TP
+.B windows
+Show Windows host/tooling status.
+.TP
+.B gui
+Launch the Windows desktop interface.
+.SH SAFETY
+Only assess devices you own or are authorized to assess. A heuristic risk score
+is not proof of malware. Review evidence before remediation.
+.SH SEE ALSO
+.BR adb (1)
