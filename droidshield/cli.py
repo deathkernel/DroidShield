@@ -50,6 +50,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("devices", help="List connected Android devices.")
     sub.add_parser("capabilities", help="Show available local analysis tools.")
     sub.add_parser("windows", help="Show Windows host and Android tooling status.")
+    sub.add_parser("gui", help="Launch the Windows desktop interface.")
 
     scan = sub.add_parser("scan", help="Run a deep read-only security inventory.")
     scan.add_argument("--serial", help="ADB device serial.")
@@ -446,6 +447,10 @@ def main() -> int:
             return cmd_capabilities()
         if args.command == "windows":
             return cmd_windows()
+        if args.command == "gui":
+            from .windows_gui import launch
+            launch()
+            return 0
         if args.command == "scan":
             return cmd_scan(
                 client,
