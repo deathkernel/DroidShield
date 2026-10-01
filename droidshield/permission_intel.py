@@ -46,8 +46,8 @@ def analyze_permissions(requested: list[str] | None, granted: list[str] | None) 
 
     dangerous_requested = sorted(requested_set & DANGEROUS_PERMISSIONS)
     dangerous_granted = sorted(granted_set & DANGEROUS_PERMISSIONS)
-    special_requested = sorted(requested_set & SENSITIVE_SPECIAL)
-    special_granted = sorted(granted_set & SENSITIVE_SPECIAL)
+    special_requested = sorted(requested_set & set(SENSITIVE_SPECIAL))
+    special_granted = sorted(granted_set & set(SENSITIVE_SPECIAL))
 
     combination_names = []
     for required, name in COMBINATIONS:
