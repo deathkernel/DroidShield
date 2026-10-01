@@ -1,0 +1,36 @@
+name: Debian package
+
+on:
+  push:
+    branches: [android-ui]
+    paths:
+      - "droidshield/**"
+      - "debian/**"
+      - "pyproject.toml"
+      - "README.md"
+      - ".github/workflows/debian-package.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-deb:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Debian packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y debhelper debhelper-compat dh-python python3-all python3-setuptools devscripts fakeroot
+      - name: Build package
+        run: dpkg-buildpackage -us -uc -b
+      - name: Validate package
+        run: |
+          dpkg-deb --info ../droidshield_*.deb
+          dpkg-deb --contents ../droidshield_*.deb | grep -E 'usr/bin/droidshield|usr/share/man/man1/droidshield.1.gz'
+      - name: Upload Debian package
+        uses: actions/upload-artifact@v4
+        with:
+          name: droidshield-deb
+          path: ../droidshield_*.deb
