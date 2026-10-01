@@ -1,0 +1,41 @@
+name: DroidShield APT repository
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Debian packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y debhelper debhelper-compat dh-python python3-all python3-setuptools devscripts fakeroot apt-utils
+      - name: Build Debian package
+        run: dpkg-buildpackage -us -uc -b
+      - name: Build APT repository
+        run: |
+          mkdir -p public/pool/main/d/droidshield public/dists/stable/main/binary-all
+          cp ../droidshield_*.deb public/pool/main/d/droidshield/
+          apt-ftparchive packages public/pool/main/d/droidshield > public/dists/stable/main/binary-all/Packages
+          gzip -9c public/dists/stable/main/binary-all/Packages > public/dists/stable/main/binary-all/Packages.gz
+          apt-ftparchive release public/dists/stable > public/dists/stable/Release
+      - name: Publish APT repository to gh-pages
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin gh-pages || true
+          if git show-ref --verify --quiet refs/remotes/origin/gh-pages; then
+            git checkout -B gh-pages origin/gh-pages
+          else
+            git checkout --orphan gh-pages
+            git rm -rf . || true
+          fi
+          cp -a public/. .
+          git add .
+          git commit -m "Publish DroidShield APT repository" || true
+          git push origin gh-pages
