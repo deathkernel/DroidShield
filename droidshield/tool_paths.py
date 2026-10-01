@@ -55,15 +55,23 @@ def _sdk_tool_path(name: str, sdk_roots: list[Path]) -> str | None:
 
     candidates: list[tuple[tuple[int, ...], Path]] = []
     for sdk_root in sdk_roots:
-        build_tools = sdk_root / "build-tools"
-        if not build_tools.is_dir():
+        # Platform-tools (adb/fastboot) are versioned independently from
+        # build-tools. Prefer the SDK-managed copy before falling back to PATH.
+        if name in {"adb", "fastboot"}:
+            platform_candidate = sdk_root / "platform-tools" / filename
+            if platform_candidate.is_file():
+                candidates.append(((10**9,), platform_candidate))
             continue
-        for version_dir in build_tools.iterdir():
-            if not version_dir.is_dir():
+        for tool_dir_name in ("build-tools",):
+            tool_dir = sdk_root / tool_dir_name
+            if not tool_dir.is_dir():
                 continue
-            candidate = version_dir / filename
-            if candidate.is_file():
-                candidates.append((_version_key(version_dir.name), candidate))
+            for version_dir in tool_dir.iterdir():
+                if not version_dir.is_dir():
+                    continue
+                candidate = version_dir / filename
+                if candidate.is_file():
+                    candidates.append((_version_key(version_dir.name), candidate))
 
     if not candidates:
         return None
