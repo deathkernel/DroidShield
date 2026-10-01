@@ -8,7 +8,7 @@ Recommended installation uses pipx so DroidShield does not modify Kali's system 
 
     sudo apt update
     sudo apt install -y adb python3-pip pipx
-    pipx install git+https://github.com/deathkernel/DroidShield.git
+    pipx install git+https://github.com/deathkernel/DroidShield.git@android-ui
 
 Verify:
 
@@ -40,7 +40,7 @@ Then install the generated package with apt. The installed command remains simpl
 
 Install Python 3.10+ and Android Platform-Tools, then:
 
-    py -m pip install "git+https://github.com/deathkernel/DroidShield.git"
+    py -m pip install "git+https://github.com/deathkernel/DroidShield.git@android-ui"
 
 Verify:
 
