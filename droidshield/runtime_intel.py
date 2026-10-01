@@ -54,3 +54,39 @@ def correlate_network(network: dict[str, Any], runtime_summary: dict[str, Any]) 
                 break
         rows.append({**item, "package": package, "attribution": "runtime-pid" if package else "unattributed"})
     return {"socket_attribution": rows[:500], "attributed_socket_count": sum(1 for row in rows if row.get("package")), "unattributed_socket_count": sum(1 for row in rows if not row.get("package"))}
+
+
+def correlate_security_events(
+    log_lines: list[str],
+    packages: list[str],
+    max_events: int = 500,
+) -> dict[str, Any]:
+    events = []
+    package_set = set(packages)
+    patterns = {
+        "install": re.compile(r"(?i)\b(?:install|installed|packageinstaller|PackageManager)\b"),
+        "permission": re.compile(r"(?i)\bpermission\b"),
+        "denied": re.compile(r"(?i)\bdenied\b"),
+        "security": re.compile(r"(?i)\bsecurity\b"),
+        "accessibility": re.compile(r"(?i)\baccessibility\b"),
+        "overlay": re.compile(r"(?i)\boverlay\b"),
+    }
+    for line in log_lines:
+        categories = [name for name, pattern in patterns.items() if pattern.search(line)]
+        if not categories:
+            continue
+        matched = [package for package in package_set if package in line]
+        events.append({
+            "event_type": categories[0],
+            "categories": categories,
+            "package": matched[0] if len(matched) == 1 else None,
+            "packages_in_line": sorted(matched),
+            "line": line,
+        })
+        if len(events) >= max_events:
+            break
+    return {
+        "event_count": len(events),
+        "package_attributed_count": sum(1 for event in events if event.get("package")),
+        "events": events,
+    }
