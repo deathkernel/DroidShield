@@ -430,18 +430,29 @@ def cmd_package_apk(
         for item in analyses
         if item.get("signing", {}).get("identity")
     ]
+    pull_failures = [
+        artifact for artifact in acquisition["artifacts"]
+        if artifact.get("status") != "pulled"
+    ]
     report = {
-        "schema_version": "1.2",
+        "schema_version": "1.3",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "serial": resolved,
         "package": package,
         "acquisition": acquisition,
+        "acquisition_complete": not pull_failures and bool(analyses),
         "analyses": analyses,
         "signing_consistency": signing_consistent,
         "signing_identities": signing_identities,
         "private_app_data_pulled": False,
     }
     write_json(report, output)
+    write_manifest(evidence_dir)
+    if pull_failures or not analyses:
+        console.print(
+            "[yellow]APK acquisition/analysis incomplete; review the report and evidence manifest.[/yellow]"
+        )
+        return 3
     return 0
 
 
