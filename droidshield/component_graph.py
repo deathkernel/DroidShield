@@ -44,7 +44,12 @@ def build_component_graph(package_metadata: list[dict[str, Any]], security: dict
         details = item.get("component_details", {}) or {}
         for key in COMPONENT_KEYS:
             values = details.get(key) if isinstance(details.get(key), list) else item.get(key, [])
-            node["components"][key] = values
+            names = [
+                component.get("name") if isinstance(component, dict) else component
+                for component in values
+                if (component.get("name") if isinstance(component, dict) else component)
+            ]
+            node["components"][key] = sorted(set(names))
             for component in values:
                 name = component.get("name") if isinstance(component, dict) else component
                 if name:
