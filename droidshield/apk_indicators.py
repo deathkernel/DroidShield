@@ -32,6 +32,7 @@ def analyze_source_text(
     examples = {name: [] for name in DYNAMIC_PATTERNS}
     scanned = 0
     total = 0
+    truncated = False
     extensions = {
         ".java",
         ".kt",
@@ -62,9 +63,12 @@ def analyze_source_text(
             if len(examples[name]) < 5:
                 examples[name].append(path.as_posix())
 
+    truncated = scanned >= max_files or total >= max_bytes
     return {
         "files_scanned": scanned,
         "bytes_scanned": total,
         "indicator_counts": counts,
         "examples": examples,
+        "truncated": truncated,
+        "limits": {"max_files": max_files, "max_bytes": max_bytes},
     }
