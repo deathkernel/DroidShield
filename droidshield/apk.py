@@ -11,6 +11,7 @@ from .apk_analyzer import analyze_manifest_text, analyze_strings
 from .apk_indicators import analyze_source_text
 from .yara import scan_with_yara
 from .provenance import certificate_identity, compare_certificate_identity
+from .static_artifacts import inspect_apk_archive
 
 
 class ApkToolError(RuntimeError):
@@ -141,6 +142,7 @@ def inspect_apk(
         "path": str(path),
         "sha256": sha256_file(path),
         "size": path.stat().st_size,
+        "archive_analysis": inspect_apk_archive(path),
         "tools": {
             name: tool_available(name)
             for name in ("aapt2", "apksigner", "apktool", "jadx", "yara")
