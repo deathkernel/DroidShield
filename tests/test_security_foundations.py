@@ -61,3 +61,24 @@ def test_network_correlation_adds_signal_for_sensitive_package():
     }
     result = correlate(report)
     assert "network-active-sensitive:com.example" in result["signals"]
+
+
+from droidshield.provenance import normalize_digest, certificate_identity, compare_certificate_identity
+from droidshield.case import build_case_bundle
+
+
+def test_certificate_normalization_and_comparison():
+    assert normalize_digest("AA:BB" + ":00" * 30) is not None
+    left = {"available": True, "returncode": 0, "certificates": {"sha256": ["AA:BB:" + "00:" * 30]}}
+    right = {"available": True, "returncode": 0, "certificates": {"sha256": ["aabb" + "00" * 30]}}
+    result = compare_certificate_identity(left, right)
+    assert result["comparable"] is True
+    assert result["same_signer"] is True
+
+
+def test_case_bundle_records_metadata_and_notes(tmp_path: Path):
+    report = {"device": {"serial": "test"}, "findings": [{"package": "com.example"}], "risk": {"level": "MEDIUM", "score": 42}}
+    result = build_case_bundle(tmp_path, report, notes=["Review installer provenance"])
+    assert (tmp_path / "case.json").exists()
+    assert (tmp_path / "notes.jsonl").exists()
+    assert result["artifacts"]
