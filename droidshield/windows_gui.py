@@ -555,7 +555,7 @@ class DroidShieldWindowsApp:
         network = self.report.get("network", {}).get("intelligence", {}) or {}
         sockets = [item for item in network.get("socket_attribution", []) if item.get("package") == name]
         related_findings = [item for item in self.report.get("findings", []) if item.get("package") == name]
-        explain = next((item for item in self.report.get("explainability", {}).get("packages", []) if item.get("package") == name), None)
+        explain = next((item for item in self.report.get("explainability", {}).get("package_explanations", []) if item.get("package") == name), None)
         payload = {
             "package": name,
             "provenance": {
