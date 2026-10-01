@@ -265,6 +265,11 @@ class DroidShieldWindowsApp:
         paned.add(right, weight=2)
 
         columns = ("package", "version", "installer", "assessment")
+        action_bar = ttk.Frame(left)
+        action_bar.pack(fill="x", pady=(0, 6))
+        ttk.Label(action_bar, text="PACKAGE INVESTIGATION", foreground=MUTED, background=BG, font=("Segoe UI", 9, "bold")).pack(side="left")
+        ttk.Button(action_bar, text="Investigate Selected", command=self._investigate_selected).pack(side="right")
+
         self.packages = ttk.Treeview(left, columns=columns, show="headings")
         for column, title, width in (
             ("package", "Package", 280),
@@ -492,7 +497,7 @@ class DroidShieldWindowsApp:
                 values=(
                     name,
                     package.get("version_name") or package.get("version_code") or "—",
-                    package.get("installer") or "—",
+                    package.get("installer_package") or "—",
                     assessment.get("level", "—"),
                 ),
             )
@@ -534,7 +539,59 @@ class DroidShieldWindowsApp:
             packages = list(packages.values())
         if index >= len(packages):
             return
-        self._write_text(self.package_detail, json.dumps(packages[index], indent=2, ensure_ascii=False))
+        self._write_text(self.package_detail, self._package_investigation(packages[index]))
+
+    def _package_investigation(self, package: dict) -> str:
+        if not self.report:
+            return "No scan report loaded."
+        name = package.get("package", "unknown")
+        assessments = {item.get("package"): item for item in self.report.get("package_assessments", []) if isinstance(item, dict)}
+        assessment = assessments.get(name, {})
+        permission = package.get("permission_intelligence", {}) or {}
+        graph = self.report.get("component_graph", {}) or {}
+        node = next((item for item in graph.get("nodes", []) if item.get("package") == name), {})
+        runtime = self.report.get("runtime", {}).get("intelligence", {}) or {}
+        processes = [item for item in runtime.get("attributed_processes", []) if item.get("package") == name]
+        network = self.report.get("network", {}).get("intelligence", {}) or {}
+        sockets = [item for item in network.get("socket_attribution", []) if item.get("package") == name]
+        related_findings = [item for item in self.report.get("findings", []) if item.get("package") == name]
+        explain = next((item for item in self.report.get("explainability", {}).get("packages", []) if item.get("package") == name), None)
+        payload = {
+            "package": name,
+            "provenance": {
+                "installer_package": package.get("installer_package"),
+                "first_install_time": package.get("first_install_time"),
+                "last_update_time": package.get("last_update_time"),
+                "apk_paths": package.get("apk_paths", []),
+                "apk_sha256": package.get("apk_sha256", {}),
+                "system_path_evidence": package.get("system_path_evidence", False),
+                "system_flag_evidence": package.get("system_flag_evidence", False),
+            },
+            "assessment": assessment,
+            "permissions": permission,
+            "active_roles": package.get("active_roles", []),
+            "components": node.get("components", package.get("component_details", {})),
+            "runtime": {"process_count": len(processes), "processes": processes},
+            "network": {"socket_count": len(sockets), "sockets": sockets},
+            "related_findings": related_findings,
+            "explainability": explain,
+        }
+        return json.dumps(payload, indent=2, ensure_ascii=False)
+
+    def _investigate_selected(self) -> None:
+        selected = self.packages.selection()
+        if not selected or not self.report:
+            messagebox.showinfo("DroidShield", "Select a package first.")
+            return
+        index = int(selected[0].split("-")[-1])
+        packages = self.report.get("package_metadata", [])
+        if isinstance(packages, dict):
+            packages = list(packages.values())
+        if index >= len(packages):
+            return
+        self._write_text(self.package_detail, self._package_investigation(packages[index]))
+        self.notebook.select(self.apps_tab)
+        self.status_var.set(f"Investigating package: {packages[index].get('package', 'unknown')}")
 
     def _render_history(self) -> None:
         for item in self.history.get_children():
