@@ -158,6 +158,7 @@ def build_parser() -> argparse.ArgumentParser:
     case.add_argument("--hash-apks", action="store_true")
     case.add_argument("--markdown", action="store_true")
     case.add_argument("--html", action="store_true")
+    case.add_argument("--note", action="append", default=[], help="Add an analyst note to the case bundle.")
 
     yara = sub.add_parser("yara", help="Scan a file/APK with an explicit YARA rule file.")
     yara.add_argument("path", type=Path)
@@ -264,12 +265,12 @@ def cmd_scan(
     return 0
 
 
-def cmd_case(client: AdbClient, serial: str | None, output: Path, hash_apks: bool, markdown: bool, html: bool) -> int:
+def cmd_case(client: AdbClient, serial: str | None, output: Path, hash_apks: bool, markdown: bool, html: bool, notes: list[str] | None = None) -> int:
     output.mkdir(parents=True, exist_ok=True)
     report = scan_device(client, serial, hash_apks=hash_apks)
     md = markdown_report(report) if markdown else None
     html_text = html_report(report) if html else None
-    manifest = build_case_bundle(output, report, md, html_text)
+    manifest = build_case_bundle(output, report, md, html_text, notes=notes or [])
     console.print(f"[green]Case bundle created:[/green] {output}")
     console.print(f"[green]Artifacts:[/green] {len(manifest['artifacts'])}")
     return 0
@@ -413,7 +414,7 @@ def cmd_package_apk(
 
     signer_sets = [
         tuple(
-            item.get("signing", {}).get("certificate_digests", {}).get("sha256", [])
+            tuple(item.get("signing", {}).get("identity", {}).get("sha256", []))
         )
         for item in analyses
         if item.get("signing")
@@ -478,6 +479,7 @@ def main() -> int:
                 args.hash_apks,
                 args.markdown,
                 args.html,
+                args.note,
             )
         if args.command == "remediate":
             return cmd_remediate(
