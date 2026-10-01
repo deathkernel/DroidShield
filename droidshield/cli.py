@@ -366,10 +366,12 @@ def cmd_remediate(
         "verified": verified,
         "post_scan_error": post_scan_error,
         "diff": diff,
+        "evidence_manifest": str(evidence_dir / "evidence-manifest.json"),
     }
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     record_path = evidence_dir / f"{package.replace('.', '_')}-remediation-{stamp}.json"
     record_path.write_text(json.dumps(record, indent=2), encoding="utf-8")
+    write_manifest(evidence_dir)
 
     manifest = write_manifest(evidence_dir)
     record["evidence_manifest"] = str(evidence_dir / "evidence-manifest.json")
