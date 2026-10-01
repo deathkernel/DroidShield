@@ -149,6 +149,10 @@ def scan_device(
                 "package": assessment["package"],
                 "evidence": {
                     "score": assessment["score"],
+                    "capability_score": assessment.get("capability_score", assessment["score"]),
+                    "corroboration_score": assessment.get("corroboration_score", 0),
+                    "evidence_quality": assessment.get("evidence_quality", "unknown"),
+                    "active_roles": assessment.get("active_roles", []),
                     "signals": assessment["signals"],
                     "apk_paths": metadata.get("apk_paths", []),
                     "apk_sha256": metadata.get("apk_sha256", {}),
@@ -162,7 +166,7 @@ def scan_device(
     telephony = audit_call_forwarding(client, resolved)
 
     report = {
-        "schema_version": "0.6",
+        "schema_version": "0.7",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "device": {
             "serial": resolved,
