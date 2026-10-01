@@ -1,0 +1,16 @@
+Source: droidshield
+Section: utils
+Priority: optional
+Maintainer: DroidShield contributors
+Build-Depends: debhelper-compat (= 13), dh-python, python3-all, python3-setuptools
+Standards-Version: 4.6.2
+Homepage: https://github.com/deathkernel/DroidShield
+
+Package: droidshield
+Architecture: all
+Depends: ${python3:Depends}, ${misc:Depends}, python3-rich, adb
+Description: defensive Android malware triage and incident-response toolkit
+ DroidShield is a defensive Android security toolkit for authorized
+ devices. It collects evidence over ADB, analyzes installed packages
+ and APK artifacts, produces forensic reports, and provides guarded
+ remediation workflows.
