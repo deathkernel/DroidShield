@@ -15,6 +15,10 @@ def assess_posture(report: dict) -> dict:
     checks.append(_check("device_policy", "attention" if security.get("device_policy") else "clear", "Active device-admin policy should be expected.", "warning" if security.get("device_policy") else "info"))
     checks.append(_check("overlays", "attention" if security.get("overlay_appops") else "clear", "Overlay access can obscure UI and capture interaction context.", "warning" if security.get("overlay_appops") else "info"))
     checks.append(_check("notification_listeners", "attention" if security.get("notification_listeners") else "clear", "Notification listeners can observe notification content.", "warning" if security.get("notification_listeners") else "info"))
-    errors = report.get("metadata_coverage", {}).get("packages_with_collection_errors", 0)
-    checks.append(_check("collection_coverage", "attention" if errors else "complete", f"Package collection errors: {errors}", "warning" if errors else "info"))
+    coverage = report.get("metadata_coverage", {})
+    errors = coverage.get("packages_with_collection_errors", 0)
+    unanalyzed = coverage.get("packages_unanalyzed", 0)
+    incomplete = errors or unanalyzed
+    detail = f"Package collection errors: {errors}; packages not analyzed: {unanalyzed}"
+    checks.append(_check("collection_coverage", "attention" if incomplete else "complete", detail, "warning" if incomplete else "info"))
     return {"schema_version": "1.0", "checks": checks, "attention_count": sum(item["status"] == "attention" for item in checks), "coverage": report.get("metadata_coverage", {})}
