@@ -1,14 +1,14 @@
 package com.deathkernel.droidshield
 
+import android.app.Activity
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.widget.Button
 import android.widget.ProgressBar
 import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : Activity() {
     private val handler = Handler(Looper.getMainLooper())
     private var running = false
     private lateinit var status: TextView
@@ -18,6 +18,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var appsStat: TextView
     private lateinit var findingsStat: TextView
     private lateinit var result: TextView
+
     private val checks = listOf(
         "Collecting device security state",
         "Reviewing app permissions",
@@ -27,6 +28,7 @@ class MainActivity : AppCompatActivity() {
         "Correlating sensitive capabilities",
         "Building security findings"
     )
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -39,6 +41,7 @@ class MainActivity : AppCompatActivity() {
         result = findViewById(R.id.result)
         scanButton.setOnClickListener { startScan() }
     }
+
     private fun startScan() {
         if (running) return
         running = true
@@ -53,13 +56,18 @@ class MainActivity : AppCompatActivity() {
         findingsStat.text = "FINDINGS\n0"
         runStep(0)
     }
+
     private fun runStep(index: Int) {
         if (!running) return
-        if (index >= checks.size) { finishScan(); return }
+        if (index >= checks.size) {
+            finishScan()
+            return
+        }
         progress.progress = ((index.toFloat() / checks.size) * 100).toInt()
         currentCheck.text = checks[index]
         handler.postDelayed({ runStep(index + 1) }, 550)
     }
+
     private fun finishScan() {
         running = false
         progress.progress = 100
@@ -71,6 +79,7 @@ class MainActivity : AppCompatActivity() {
         scanButton.isEnabled = true
         scanButton.text = "START DEEP SCAN"
     }
+
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
         super.onDestroy()
