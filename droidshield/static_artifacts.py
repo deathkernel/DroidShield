@@ -6,8 +6,12 @@ from pathlib import Path
 from typing import Any
 
 
+DEX_MAGIC = bytes((0x64, 0x65, 0x78, 0x0A))
+ELF_MAGIC = bytes((0x7F, 0x45, 0x4C, 0x46))
+
+
 def _dex_version(data: bytes) -> str | None:
-    if len(data) < 8 or data[:4] != b"dex\n":
+    if len(data) < 8 or data[:4] != DEX_MAGIC:
         return None
     raw = data[4:7]
     try:
@@ -17,7 +21,7 @@ def _dex_version(data: bytes) -> str | None:
 
 
 def _elf_identity(data: bytes) -> dict[str, Any]:
-    if len(data) < 20 or data[:4] != b"\x7fELF":
+    if len(data) < 20 or data[:4] != ELF_MAGIC:
         return {"is_elf": False}
     elf_class = {1: "ELF32", 2: "ELF64"}.get(data[4], f"ELF-class-{data[4]}")
     endian = "little" if data[5] == 1 else "big" if data[5] == 2 else "unknown"
@@ -56,7 +60,7 @@ def inspect_apk_archive(path: Path, max_entries: int = 20000) -> dict[str, Any]:
                         "path": name,
                         "size": info.file_size,
                         "version": _dex_version(magic),
-                        "magic_valid": magic[:4] == b"dex\\n",
+                        "magic_valid": magic[:4] == DEX_MAGIC,
                     })
                 elif lower.startswith("lib/") and lower.endswith(".so"):
                     with archive.open(info) as handle:
