@@ -13,6 +13,7 @@ from .explain import explain_report
 from .posture import assess_posture
 from .hardening import recommendations
 from .network import collect_network_state
+from .runtime_intel import summarize_runtime, correlate_network
 from .permission_intel import analyze_permissions
 from .telephony import audit_call_forwarding
 from .timeline import build_incident_timeline, build_install_timeline
@@ -78,7 +79,10 @@ def scan_device(client: AdbClient, serial: str | None = None, hash_apks: bool = 
             findings.append({"severity": "MEDIUM", "title": "High-risk app capability combination", "description": "This third-party package has sensitive capabilities corroborated by device state. Review provenance, granted permissions, and whether each capability is expected.", "package": assessment["package"], "evidence": {"score": assessment["score"], "capability_score": assessment["capability_score"], "granted_capability_score": assessment.get("granted_capability_score", 0), "corroboration_score": assessment.get("corroboration_score", 0), "dangerous_granted_count": assessment.get("dangerous_granted_count", 0), "permission_combination_count": assessment.get("permission_combination_count", 0), "evidence_quality": assessment.get("evidence_quality", "unknown"), "active_roles": assessment.get("active_roles", []), "signals": assessment["signals"], "apk_paths": metadata.get("apk_paths", []), "apk_sha256": metadata.get("apk_sha256", {})}})
 
     runtime = collect_runtime(client, resolved)
+    runtime_summary = summarize_runtime(runtime, packages)
+    runtime["intelligence"] = runtime_summary
     network = collect_network_state(client, resolved, runtime.get("processes", []))
+    network["intelligence"] = correlate_network(network, runtime_summary)
     timeline = build_install_timeline(package_metadata)
     component_graph = build_component_graph(package_metadata, security)
     telephony = audit_call_forwarding(client, resolved)
@@ -88,7 +92,7 @@ def scan_device(client: AdbClient, serial: str | None = None, hash_apks: bool = 
         "granted_permissions_observed": sum(len(item.get("granted_permissions", [])) for item in package_metadata),
     }
     report = {
-        "schema_version": "0.9",
+        "schema_version": "1.0",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "device": {"serial": resolved, "manufacturer": props.get("ro.product.manufacturer"), "model": props.get("ro.product.model"), "android": props.get("ro.build.version.release"), "sdk": props.get("ro.build.version.sdk"), "security_patch": props.get("ro.build.version.security_patch")},
         "packages": packages,
