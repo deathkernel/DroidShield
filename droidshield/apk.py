@@ -8,6 +8,7 @@ from pathlib import Path
 
 from .adb import AdbClient
 from .apk_analyzer import analyze_manifest_text, analyze_strings
+from .apk_indicators import analyze_source_text
 from .yara import scan_with_yara
 
 
@@ -174,6 +175,7 @@ def inspect_apk(
         )
         if result["deep"]["apktool"]["returncode"] == 0 and decoded.is_dir():
             result["deep"]["decoded_analysis"] = _analyze_text_tree(decoded)
+            result["deep"]["behavioral_indicators"] = analyze_source_text(decoded)
 
     if result["tools"]["jadx"]:
         source = work / "jadx"
@@ -182,6 +184,7 @@ def inspect_apk(
         )
         if result["deep"]["jadx"]["returncode"] == 0 and source.is_dir():
             result["deep"]["source_analysis"] = _analyze_text_tree(source)
+            result["deep"]["source_indicators"] = analyze_source_text(source)
 
     return result
 
