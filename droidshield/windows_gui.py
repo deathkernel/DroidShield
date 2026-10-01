@@ -10,6 +10,7 @@ from tkinter import filedialog, messagebox, ttk
 from .adb import AdbClient
 from .report import html_report, markdown_report
 from .scanner import scan_device
+from .diff import compare_reports
 from .windows import list_adb_devices, windows_environment_report
 
 
@@ -151,15 +152,21 @@ class DroidShieldWindowsApp:
         self.apps_tab = ttk.Frame(self.notebook)
         self.evidence_tab = ttk.Frame(self.notebook)
         self.history_tab = ttk.Frame(self.notebook)
+        self.timeline_tab = ttk.Frame(self.notebook)
+        self.changes_tab = ttk.Frame(self.notebook)
         self.notebook.add(self.dashboard_tab, text="Overview")
         self.notebook.add(self.findings_tab, text="Findings")
         self.notebook.add(self.apps_tab, text="Packages")
+        self.notebook.add(self.timeline_tab, text="Timeline")
+        self.notebook.add(self.changes_tab, text="Changes")
         self.notebook.add(self.evidence_tab, text="Evidence")
         self.notebook.add(self.history_tab, text="History")
 
         self._build_overview()
         self._build_findings()
         self._build_packages()
+        self._build_timeline()
+        self._build_changes()
         self._build_evidence()
         self._build_history()
 
@@ -284,6 +291,28 @@ class DroidShieldWindowsApp:
 
         self.package_detail = self._detail_text(right)
 
+    def _build_timeline(self) -> None:
+        frame = ttk.Frame(self.timeline_tab, padding=10)
+        frame.pack(fill="both", expand=True)
+        columns = ("timestamp", "type", "package", "details")
+        self.timeline = ttk.Treeview(frame, columns=columns, show="headings")
+        for column, title, width in (
+            ("timestamp", "Timestamp", 210),
+            ("type", "Event", 170),
+            ("package", "Package", 300),
+            ("details", "Details", 420),
+        ):
+            self.timeline.heading(column, text=title)
+            self.timeline.column(column, width=width, anchor="w")
+        self.timeline.pack(fill="both", expand=True)
+
+    def _build_changes(self) -> None:
+        frame = ttk.Frame(self.changes_tab, padding=12)
+        frame.pack(fill="both", expand=True)
+        ttk.Label(frame, text="SCAN-TO-SCAN CHANGE ANALYSIS", foreground=MUTED, background=BG,
+                  font=("Segoe UI", 9, "bold")).pack(anchor="w", pady=(0, 8))
+        self.changes_text = self._detail_text(frame)
+
     def _build_evidence(self) -> None:
         tab = self.evidence_tab
         frame = ttk.Frame(tab, padding=14)
@@ -399,8 +428,17 @@ class DroidShieldWindowsApp:
         self._scan_running = False
         self.progress.stop()
         self.scan_button.configure(state="normal")
+        previous = None
+        for entry in reversed(self.scan_history):
+            if entry.get("device") == report.get("device", {}).get("serial"):
+                previous = entry.get("report")
+                break
         self.report = report
         self._render_report(report)
+        if previous:
+            self._render_changes(compare_reports(previous, report))
+        else:
+            self._write_text(self.changes_text, "No previous scan for this device is available. Run another scan to generate a baseline comparison.")
 
         risk = report.get("risk", {})
         device = report.get("device", {})
@@ -451,6 +489,7 @@ class DroidShieldWindowsApp:
         self._write_text(self.security_text, json.dumps(security, indent=2, ensure_ascii=False))
         self._render_findings(findings)
         self._render_packages(report)
+        self._render_timeline(report)
         self._render_evidence(report)
 
     def _render_findings(self, findings: list[dict]) -> None:
@@ -505,6 +544,24 @@ class DroidShieldWindowsApp:
         self.packages.tag_configure("HIGH", foreground=DANGER)
         self.packages.tag_configure("MEDIUM", foreground=WARNING)
         self.packages.tag_configure("LOW", foreground=ACCENT)
+
+    def _render_timeline(self, report: dict) -> None:
+        for item in self.timeline.get_children():
+            self.timeline.delete(item)
+        for index, event in enumerate(report.get("incident_timeline", [])):
+            details = ", ".join(
+                f"{key}={value}" for key, value in event.items()
+                if key not in {"timestamp", "type", "package"}
+            )
+            self.timeline.insert("", "end", iid=f"timeline-{index}", values=(
+                event.get("timestamp", "—"),
+                event.get("type", "—"),
+                event.get("package", "—") or "—",
+                details or "—",
+            ))
+
+    def _render_changes(self, changes: dict) -> None:
+        self._write_text(self.changes_text, json.dumps(changes, indent=2, ensure_ascii=False))
 
     def _render_evidence(self, report: dict) -> None:
         payload = {
