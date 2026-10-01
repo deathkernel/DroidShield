@@ -104,3 +104,15 @@ def test_evidence_manifest_sidecar_tamper_is_detected(tmp_path: Path):
     result = verify_manifest(tmp_path, manifest)
     assert result["valid"] is False
     assert result["sidecar_valid"] is False
+
+
+def test_security_event_correlation_attributes_package():
+    from droidshield.runtime_intel import correlate_security_events
+    result = correlate_security_events([
+        "PackageManager: install com.example.bad",
+        "permission denied for com.other",
+        "ordinary ActivityManager event",
+    ], ["com.example.bad", "com.other"])
+    assert result["event_count"] == 2
+    assert result["package_attributed_count"] == 2
+    assert result["events"][0]["package"] == "com.example.bad"
