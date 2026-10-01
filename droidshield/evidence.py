@@ -33,7 +33,10 @@ def build_manifest(root: Path) -> dict:
 
 def verify_manifest(root: Path, manifest: dict) -> dict:
     current = build_manifest(root)
-    expected = {item["path"]: item["sha256"] for item in manifest.get("files", [])}
+    entries = manifest.get("files")
+    if entries is None:
+        entries = manifest.get("artifacts", [])
+    expected = {item["path"]: item["sha256"] for item in entries}
     actual = {item["path"]: item["sha256"] for item in current.get("files", [])}
     missing = sorted(set(expected) - set(actual))
     added = sorted(set(actual) - set(expected))
