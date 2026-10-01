@@ -64,7 +64,7 @@ def test_network_correlation_adds_signal_for_sensitive_package():
 
 
 from droidshield.provenance import normalize_digest, certificate_identity, compare_certificate_identity
-from droidshield.case import build_case_bundle
+from droidshield.case import build_case_bundle, verify_case_bundle
 
 
 def test_certificate_normalization_and_comparison():
@@ -82,3 +82,14 @@ def test_case_bundle_records_metadata_and_notes(tmp_path: Path):
     assert (tmp_path / "case.json").exists()
     assert (tmp_path / "notes.jsonl").exists()
     assert result["artifacts"]
+
+
+def test_case_bundle_verification_detects_tampering(tmp_path: Path):
+    report = {"device": {"serial": "test"}, "findings": [], "risk": {"level": "LOW", "score": 0}}
+    build_case_bundle(tmp_path, report, notes=["Initial triage"])
+    valid = verify_case_bundle(tmp_path)
+    assert valid["valid"] is True
+    (tmp_path / "report.json").write_text("tampered", encoding="utf-8")
+    invalid = verify_case_bundle(tmp_path)
+    assert invalid["valid"] is False
+    assert "report.json" in invalid["changed"]
