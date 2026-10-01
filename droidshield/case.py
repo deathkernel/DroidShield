@@ -5,6 +5,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from .evidence import verify_manifest
 
 
 def _sha256(path: Path) -> str:
@@ -82,3 +83,17 @@ def build_case_bundle(
         **manifest,
         "manifest_sha256": manifest_hash,
     }
+
+
+def verify_case_bundle(case_dir: Path) -> dict[str, Any]:
+    case_dir = case_dir.resolve()
+    manifest_path = case_dir / "evidence-manifest.json"
+    if not manifest_path.is_file():
+        return {"valid": False, "error": "evidence-manifest.json is missing", "case_dir": str(case_dir)}
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return {"valid": False, "error": f"invalid evidence manifest: {exc}", "case_dir": str(case_dir)}
+    result = verify_manifest(case_dir, manifest)
+    result.update({"case_dir": str(case_dir), "manifest": str(manifest_path)})
+    return result
