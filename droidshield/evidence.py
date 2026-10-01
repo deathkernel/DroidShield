@@ -22,6 +22,8 @@ def build_manifest(root: Path) -> dict:
     for path in sorted(p for p in root.rglob("*") if p.is_file()):
         try:
             rel = path.relative_to(root).as_posix()
+            if rel in {"evidence-manifest.json", "evidence-manifest.sha256"}:
+                continue
             entries.append({"path": rel, "size": path.stat().st_size, "sha256": sha256_file(path)})
         except OSError:
             continue
