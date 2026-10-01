@@ -20,6 +20,7 @@ def build_case_bundle(
     report: dict[str, Any],
     markdown: str | None = None,
     html: str | None = None,
+    notes: list[str] | None = None,
 ) -> dict[str, Any]:
     case_dir.mkdir(parents=True, exist_ok=True)
     report_path = case_dir / "report.json"
@@ -29,6 +30,28 @@ def build_case_bundle(
         (case_dir / "report.md").write_text(markdown, encoding="utf-8")
     if html is not None:
         (case_dir / "report.html").write_text(html, encoding="utf-8")
+    notes_path = case_dir / "notes.jsonl"
+    existing = []
+    if notes_path.exists():
+        existing = [line for line in notes_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    for note in notes or []:
+        existing.append(json.dumps({
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "note": str(note),
+        }, ensure_ascii=False))
+    if existing:
+        notes_path.write_text("\n".join(existing) + "\n", encoding="utf-8")
+
+    case_metadata = {
+        "schema_version": "1.0",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "device": report.get("device", {}),
+        "finding_count": len(report.get("findings", [])),
+        "risk": report.get("risk", {}),
+        "analyst_notes": len(existing),
+        "scope": "authorized defensive Android investigation",
+    }
+    (case_dir / "case.json").write_text(json.dumps(case_metadata, indent=2, ensure_ascii=False), encoding="utf-8")
 
     artifacts = []
     for path in sorted(case_dir.rglob("*")):
