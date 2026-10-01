@@ -49,8 +49,12 @@ def correlate(report: dict) -> dict:
                 score += 4
 
     socket_attribution = report.get("network", {}).get("intelligence", {}).get("socket_attribution", [])
+    network_seen = set()
     for socket in socket_attribution:
         package = socket.get("package")
+        if package in network_seen:
+            continue
+        network_seen.add(package)
         assessment = assessments.get(package)
         if package in third_party and assessment and assessment.get("level") == "HIGH":
             signals.append(f"high-risk-network-process:{package}")
