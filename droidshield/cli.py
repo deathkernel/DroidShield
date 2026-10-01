@@ -38,6 +38,7 @@ from .tooling import capabilities
 from .yara import scan_with_yara
 from .windows import windows_environment_report, list_adb_devices
 from .mobile_api import serve_mobile
+from . import __version__
 
 console = Console()
 
@@ -47,6 +48,7 @@ def build_parser() -> argparse.ArgumentParser:
         prog="droidshield",
         description="Defensive Android malware triage and remediation toolkit.",
     )
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
 
     sub.add_parser("devices", help="List connected Android devices.")
