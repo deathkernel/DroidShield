@@ -12,6 +12,7 @@ from .apk_indicators import analyze_source_text
 from .yara import scan_with_yara
 from .provenance import certificate_identity, compare_certificate_identity
 from .static_artifacts import inspect_apk_archive
+from .tool_paths import resolve_tool
 
 
 class ApkToolError(RuntimeError):
@@ -27,7 +28,7 @@ def sha256_file(path: Path) -> str:
 
 
 def tool_available(name: str) -> bool:
-    return shutil.which(name) is not None
+    return resolve_tool(name) is not None
 
 
 def _run_tool(command: list[str], timeout: int = 120) -> dict:
@@ -71,8 +72,11 @@ def _extract_cert_digests(output: str) -> dict[str, list[str]]:
 def _signer_identity(path: Path) -> dict:
     if not tool_available("apksigner"):
         return {"available": False}
+    executable = resolve_tool("apksigner")
+    if not executable:
+        return {"available": False}
     result = _run_tool(
-        ["apksigner", "verify", "--verbose", "--print-certs", str(path)],
+        [executable, "verify", "--verbose", "--print-certs", str(path)],
         timeout=60,
     )
     raw = _extract_cert_digests(result["output"])
@@ -147,11 +151,15 @@ def inspect_apk(
             name: tool_available(name)
             for name in ("aapt2", "apksigner", "apktool", "jadx", "yara")
         },
+        "tool_paths": {
+            name: resolve_tool(name)
+            for name in ("aapt2", "apksigner", "apktool", "jadx", "yara")
+        },
     }
 
     if result["tools"]["aapt2"]:
         result["aapt2"] = _run_tool(
-            ["aapt2", "dump", "badging", str(path)],
+            [resolve_tool("aapt2"), "dump", "badging", str(path)],
             timeout=60,
         )
 
@@ -177,7 +185,7 @@ def inspect_apk(
     if result["tools"]["apktool"]:
         decoded = work / "apktool"
         result["deep"]["apktool"] = _run_tool(
-            ["apktool", "d", "-f", str(path), "-o", str(decoded)],
+            [resolve_tool("apktool"), "d", "-f", str(path), "-o", str(decoded)],
         )
         if result["deep"]["apktool"]["returncode"] == 0 and decoded.is_dir():
             result["deep"]["decoded_analysis"] = _analyze_text_tree(decoded)
@@ -186,7 +194,7 @@ def inspect_apk(
     if result["tools"]["jadx"]:
         source = work / "jadx"
         result["deep"]["jadx"] = _run_tool(
-            ["jadx", "-q", "-d", str(source), str(path)],
+            [resolve_tool("jadx"), "-q", "-d", str(source), str(path)],
         )
         if result["deep"]["jadx"]["returncode"] == 0 and source.is_dir():
             result["deep"]["source_analysis"] = _analyze_text_tree(source)
