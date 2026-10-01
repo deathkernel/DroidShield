@@ -102,6 +102,7 @@ def _analyze_text_tree(
     urls = set()
     terms = set()
     manifests = []
+    truncated = False
 
     extensions = {".xml", ".smali", ".java", ".kt", ".txt", ".json", ".properties"}
     for path in sorted(root.rglob("*")):
@@ -126,12 +127,15 @@ def _analyze_text_tree(
         if path.name == "AndroidManifest.xml":
             manifests.append(analyze_manifest_text(text))
 
+    truncated = scanned >= max_files or total_bytes >= max_total_bytes
     return {
         "files_scanned": scanned,
         "bytes_scanned": total_bytes,
         "urls": sorted(urls)[:1000],
         "suspicious_terms": sorted(terms),
         "manifests": manifests[:5],
+        "truncated": truncated,
+        "limits": {"max_files": max_files, "max_total_bytes": max_total_bytes},
     }
 
 
