@@ -93,10 +93,6 @@ def scan_device(
         )
         for package in target_packages
     ]
-    package_assessments = [
-        classify_package(item["package"], item)
-        for item in package_metadata
-    ]
 
     security["active_component_packages"] = {
         "accessibility": _component_packages(security.get("accessibility_services")),
@@ -105,6 +101,24 @@ def scan_device(
         "notification": _component_packages(security.get("notification_listeners")),
         "launcher": _component_packages(security.get("default_launcher")),
     }
+
+    # Feed runtime role evidence back into package classification. This keeps
+    # capability possession separate from proof that a privileged capability
+    # is actually enabled and active on the device.
+    active_roles_by_package: dict[str, list[str]] = {}
+    for role, packages_for_role in security["active_component_packages"].items():
+        for package in packages_for_role:
+            active_roles_by_package.setdefault(package, []).append(role)
+
+    for item in package_metadata:
+        item["active_roles"] = sorted(set(active_roles_by_package.get(
+            item["package"], []
+        )))
+
+    package_assessments = [
+        classify_package(item["package"], item)
+        for item in package_metadata
+    ]
 
     for item in package_metadata:
         if item.get("collection_error"):
