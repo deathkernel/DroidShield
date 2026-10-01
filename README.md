@@ -318,7 +318,11 @@ Compare two preserved APK artifacts to identify hash changes, size deltas, and s
     droidshield apk-diff before.apk after.apk --output apk-diff.json
 
 A changed APK hash is expected after an application update. A signer change is a separate provenance signal that should be reviewed in context.
-\n\n## Cross-platform safety\n\nWindows support does not change the defensive scope: scanning and analysis are read-only by default, APKs are not executed, and package remediation requires explicit confirmation. Use DroidShield only on devices you own or are authorized to assess.\n
+\n\n## Android SDK tool discovery
+
+On Windows, DroidShield automatically discovers `aapt2.exe` and `apksigner.bat` from the newest installed Android SDK Build Tools version when those tools are not already on `PATH`. Set `ANDROID_SDK_ROOT` or `ANDROID_HOME` to override the SDK location. This allows APK manifest and signer analysis to work with a standard Android SDK installation without manually adding every Build Tools directory to `PATH`.
+
+## Cross-platform safety\n\nWindows support does not change the defensive scope: scanning and analysis are read-only by default, APKs are not executed, and package remediation requires explicit confirmation. Use DroidShield only on devices you own or are authorized to assess.\n
 
 ## Deep scan and safe malware removal
 
